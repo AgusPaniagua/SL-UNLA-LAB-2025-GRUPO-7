@@ -1,0 +1,4 @@
+fastapi
+sqlalchemy
+pandas
+borb
