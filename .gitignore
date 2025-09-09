@@ -1,0 +1,48 @@
+# === ENTORNOS VIRTUALES ===
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+.env/
+
+# === CACHES DE PYTHON ===
+__pycache__/
+*.py[cod]
+*$py.class
+
+# === ARCHIVOS TEMPORALES ===
+*.log
+*.tmp
+*.bak
+*.swp
+
+# === CONFIGURACIONES DE EDITOR ===
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# === ARCHIVOS DEL SISTEMA ===
+.DS_Store
+Thumbs.db
+
+# === ARCHIVOS DE PRUEBA / COVERAGE ===
+.tox/
+.pytest_cache/
+coverage/
+
+# === BASES DE DATOS ===
+*.sqlite3
+*.db
+
+# === JUPYTER ===
+.ipynb_checkpoints/
+
+# === ENTORNOS DE TEST ===
+test-output/
+nosetests.xml
+
+# === ARCHIVOS DE DEPENDENCIAS ===
+# (Estos se deben subir si querés compartir dependencias)
+# requirements.txt  <-- No lo ignores, asegurate de subirlo
