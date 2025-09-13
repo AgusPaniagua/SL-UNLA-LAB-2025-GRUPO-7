@@ -13,9 +13,10 @@ def doc():
     return "Hola,presentamos la Api en python del Grupo 7"
 
 #Endpoints para turnos
-# tener en cuenta al crear POST las siguientes validaciones:
+# Tener en cuenta al crear POST las siguientes validaciones:
 # Los estados posibles de un turno son pendiente, cancelado, confirmado y asistido. 
 # Los turnos deberán ser creados con estado "pendiente". 
+ESTADOS_VALIDOS = {"pendiente", "cancelado", "confirmado", "asistido"}
 @app.get("/turnos/", response_model=list[models.models_Turnos])
 def leer_turnos():
     turnos = db.query(Turnos).all()
@@ -42,8 +43,12 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
         turno.hora = turno_actualizado.hora
         hubo_Cambios = True
     if turno_actualizado.estado is not None:
-        turno.estado = turno_actualizado.estado
-        hubo_Cambios = True
+        if turno_actualizado.estado in ESTADOS_VALIDOS:
+            turno.estado = turno_actualizado.estado
+            hubo_Cambios = True
+        else:
+            if turno_actualizado.estado is not None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Estado inválido. Debe ser: pendiente, cancelado, confirmado o asistido.") 
     if turno_actualizado.persona_id is not None:
         turno.persona_id = turno_actualizado.persona_id
         hubo_Cambios = True
