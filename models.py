@@ -13,6 +13,7 @@ class models_Turnos(BaseModel):
     model_config = {
         "from_attributes": True  # Así le decís a Pydantic v2 que use atributos del ORM
     }
+    
 #Modelo para actualizar turnos
 class TurnoUpdate(BaseModel):
     fecha: Optional[date] = None

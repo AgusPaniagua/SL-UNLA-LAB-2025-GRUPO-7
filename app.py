@@ -11,7 +11,11 @@ db: Session = SessionLocal()
 @app.get("/")
 def doc():
     return "Hola,presentamos la Api en python del Grupo 7"
+
 #Endpoints para turnos
+# tener en cuenta al crear POST las siguientes validaciones:
+# Los estados posibles de un turno son pendiente, cancelado, confirmado y asistido. 
+# Los turnos deberán ser creados con estado "pendiente". 
 @app.get("/turnos/", response_model=list[models.models_Turnos])
 def leer_turnos():
     turnos = db.query(Turnos).all()
