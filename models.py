@@ -24,7 +24,7 @@ class TurnoUpdate(BaseModel):
 
 #Modelo para personas
 class DatosPersona(BaseModel):
-    id: int  # Incluimos el ID para que Pydantic lo reconozca   
+    #id: int  # Incluimos el ID para que Pydantic lo reconozca   
     nombre: str
     email: str
     dni: int
