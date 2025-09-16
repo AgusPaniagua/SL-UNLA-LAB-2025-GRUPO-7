@@ -4,12 +4,13 @@ from database import SessionLocal, Turnos, Persona
 import models  # models.models_Turnos = modelo Pydantic
 from datetime import date
 from typing import Optional
-
+import re
 from pydantic import BaseModel
 from datetime import date, time
 
 # Modelo de datos para crear una nueva persona
 class PersonaCreate(BaseModel):
+    id: int
     nombre: str
     email: str
     dni: int
@@ -88,19 +89,34 @@ def eliminar_turno(turno_id: int):
     db.commit()
     return
 
-
+#Funcion para validar email
 def validar_email(email: str):
-    if "@" not in email:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El email debe tener @")
+    patron = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if not re.match(patron, email):
+        raise ValueError("Email inválido")
     return True
+
+#Funcion para validar fecha de nacimiento
+def validar_fecha_nacimiento(año, mes, dia):
+    año_actual = date.today().year
+    if año > año_actual:
+        raise ValueError("El año no puede ser mayor al actual")
+    try:
+        fecha = date(año, mes, dia)
+    except ValueError:
+        raise ValueError("Fecha inválida")
+    return fecha
+
     
 #Endpoints para personas
 
+#Endpoin para traer a todas las personas
 @app.get("/personas/", response_model=list[models.DatosPersona])
 def traer_personas():
     personas = db.query(Persona).all()
     return personas
 
+#Endpoin para traer a una persona por su id
 @app.get("/personas/{persona_id}", response_model=models.DatosPersona)
 def traer_personas(persona_id: int):
         persona = db.query(Persona).filter(Persona.id == persona_id).first()
@@ -108,32 +124,40 @@ def traer_personas(persona_id: int):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
         return persona
 
-@app.put("/personas/{perosna_id}",response_model=models.DatosPersona)
-def modificar_persona(persona_id: int, persona_modificada: models.DatosPersona):
-    persona = db.query(Persona).filter(Persona.id == persona_id).first()
-    if(persona is None):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
-    if not(persona_modificada.nombre.strip()):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El nombre no puede estar vacío")
-    persona.nombre=persona_modificada.nombre
-    if not(persona_modificada.email.strip()):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El email no puede estar vacío")
-    if validar_email(persona_modificada.email):
-        persona.email=persona_modificada.email
-    else:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El email debe tener @")
-    if not(persona_modificada.telefono.strip()):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El telefono no puede estar vacío")
-    persona.telefono=persona_modificada.telefono
-    if not(persona_modificada.dni.strip()):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El dni no puede estar vacío")
-    persona.fecha_de_nacimiento=persona_modificada.fecha_de_nacimiento
-    persona.edad=persona_modificada.edad
-    persona.habilitado_para_turno=persona_modificada.habilitado_para_turno
-    db.commit()
-    db.refresh(persona)
-    
+#Endpoin para modificar una persona
+@app.put("/personas/{persona_id}",response_model=models.DatosPersona)
+def modificar_persona(persona_id: int, persona_modificada: models.PersonaBase):
+        persona = db.query(Persona).filter(Persona.id == persona_id).first()
+        if(persona is None):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
+        if not(persona_modificada.nombre.strip()):
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El nombre no puede estar vacío")
+        persona.nombre=persona_modificada.nombre
+        if not(persona_modificada.email.strip()):
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El email no puede estar vacío")
+        try:
+            validar_email(persona_modificada.email)
+            persona.email = persona_modificada.email
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        if not(persona_modificada.telefono.strip()):
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El telefono no puede estar vacío")
+        persona.telefono=persona_modificada.telefono
+        if (persona_modificada.dni <=0):
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El dni no puede ser 0 o negativo")
+        try:
+            fecha = persona_modificada.fecha_de_nacimiento
+            validar_fecha_nacimiento(fecha.year, fecha.month, fecha.day)
+            persona.fecha_de_nacimiento = fecha
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=f"Fecha de nacimiento inválida: {str(e)}")
+        persona.habilitado_para_turno=persona_modificada.habilitado_para_turno
+        db.commit()
+        db.refresh(persona)
+        return persona
 
+    
+#Endpoint para eliminar un persona
 @app.delete("/personas/{persona_id}",status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_persona(persona_id: int):
     persona = db.query(Persona).filter(Persona.id == persona_id).first()
@@ -166,7 +190,6 @@ def crear_persona(persona: PersonaCreate):
         dni=persona.dni,
         telefono=persona.telefono,
         fecha_de_nacimiento=persona.fecha_de_nacimiento,
-        edad=edad,
         habilitado_para_turno=True  # Por defecto habilitado para solicitar el turno
     )
 
