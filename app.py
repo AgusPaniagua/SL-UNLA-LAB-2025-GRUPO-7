@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Response, status
+from fastapi import FastAPI, HTTPException, Response, status, Query
 from sqlalchemy.orm import Session
 from database import SessionLocal, Turnos, Persona
 import models  # models.models_Turnos = modelo Pydantic
@@ -7,6 +7,7 @@ from typing import Optional
 import re
 from pydantic import BaseModel
 from datetime import date, time
+from turnosdisponibles import calcular_turnos_disponibles
 
 # Modelo de datos para crear una nueva persona
 class PersonaCreate(BaseModel):
@@ -88,6 +89,14 @@ def eliminar_turno(turno_id: int):
     db.delete(turno)
     db.commit()
     return
+
+@app.get("/turnos-disponibles")
+def turnos_disponibles(fecha: date = Query(..., description="YYYY-MM-DD")):
+    horarios = calcular_turnos_disponibles(db, fecha)
+    return {
+        "fecha": fecha.isoformat(),
+        "horarios_disponibles": horarios,
+    }
 
 #Funcion para validar email
 def validar_email(email: str):
