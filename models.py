@@ -23,8 +23,20 @@ class TurnoUpdate(BaseModel):
 
 
 #Modelo para personas
+class PersonaBase(BaseModel):
+    nombre: str
+    email: str
+    dni: int
+    telefono: str
+    fecha_de_nacimiento: date
+    habilitado_para_turno:Optional[bool] =bool
+
+    model_config={
+        "from_attributes": True
+    }
+
 class DatosPersona(BaseModel):
-    #id: int  # Incluimos el ID para que Pydantic lo reconozca   
+    id: int
     nombre: str
     email: str
     dni: int
@@ -32,9 +44,6 @@ class DatosPersona(BaseModel):
     fecha_de_nacimiento: date
     edad: int
     habilitado_para_turno: bool
-
     model_config={
         "from_attributes": True
     }
-
-
