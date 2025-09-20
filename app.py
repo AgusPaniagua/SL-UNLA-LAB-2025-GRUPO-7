@@ -43,7 +43,7 @@ def leer_turnos():
     turnos = db.query(Turnos).all()
     return turnos
 
-@app.get("/turnos/{turno_id}", response_model=models.models_Turnos)
+@app.get("/turno/{turno_id}", response_model=models.models_Turnos)
 def leer_turno(turno_id: int):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
     if turno is None:
@@ -55,12 +55,18 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
     if turno is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
-    
     hubo_Cambios = False
-    if turno_actualizado.fecha is not None: 
+    if turno_actualizado.fecha is not None:
         turno.fecha = turno_actualizado.fecha
         hubo_Cambios = True
-    if turno_actualizado.hora is not None:     
+    if turno_actualizado.hora is not None and turno_actualizado.hora != turno.hora: 
+        fecha_consulta = turno_actualizado.fecha if turno_actualizado.fecha else turno.fecha
+        turnos_disponibles = calcular_turnos_disponibles(db, fecha_consulta)
+        hora_str = turno_actualizado.hora.strftime("%H:%M")
+        if hora_str not in turnos_disponibles:
+            raise HTTPException(
+                status_code=400,detail=f"La hora {hora_str} no está disponible para la fecha {fecha_consulta}",
+            )
         turno.hora = turno_actualizado.hora
         hubo_Cambios = True
     if turno_actualizado.estado is not None:
@@ -81,7 +87,7 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
     db.refresh(turno)
     return turno
 
-@app.delete("/turnos/{turno_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/turno/{turno_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_turno(turno_id: int):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
     if turno is None:
