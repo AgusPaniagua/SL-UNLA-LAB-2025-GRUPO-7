@@ -87,6 +87,60 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
     db.refresh(turno)
     return turno
 
+@app.post("/turnos/", response_model=models.models_Turnos, status_code=status.HTTP_201_CREATED)
+def crear_turno(turno: TurnoCreate):
+    # Validar que la persona exista en la base de datos
+    persona = db.query(Persona).filter(Persona.id == turno.persona_id).first()
+    if not persona:
+        raise HTTPException(status_code=404, detail="La persona no existe")
+
+    # Verificar disponibilidad dentro de los slots
+    turnos_disponibles = calcular_turnos_disponibles(db, turno.fecha)
+    hora_str = turno.hora.strftime("%H:%M")
+    if hora_str not in turnos_disponibles:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La hora {hora_str} no está disponible para la fecha {turno.fecha}",
+        )
+
+    # Nuevo agregado: evitar que otro turno esté en la misma fecha y hora
+    turno_existente = db.query(Turnos).filter(
+        Turnos.fecha == turno.fecha,
+        Turnos.hora == turno.hora,
+        Turnos.estado != "cancelado"
+    ).first()
+    if turno_existente:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El horario {hora_str} ya está ocupado por otro turno"
+        )
+
+    # Regla de negocio: no permitir si tiene 5 o más turnos cancelados en los últimos 6 meses
+    seis_meses_atras = date.today().replace(month=max(1, date.today().month - 6))
+    cancelados = (
+        db.query(Turnos)
+        .filter(Turnos.persona_id == turno.persona_id)
+        .filter(Turnos.estado == "cancelado")
+        .filter(Turnos.fecha >= seis_meses_atras)
+        .count()
+    )
+    if cancelados >= 5:
+        raise HTTPException(status_code=400, detail="La persona tiene demasiados turnos cancelados")
+
+    # Crear nuevo turno con estado inicial "pendiente"
+    nuevo_turno = Turnos(
+        fecha=turno.fecha,
+        hora=turno.hora,
+        estado="pendiente",
+        persona_id=turno.persona_id
+    )
+
+    # Guardar el turno en la base de datos
+    db.add(nuevo_turno)
+    db.commit()
+    db.refresh(nuevo_turno)
+    return nuevo_turno
+
 @app.delete("/turno/{turno_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_turno(turno_id: int):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
@@ -171,24 +225,7 @@ def modificar_persona(persona_id: int, persona_modificada: models.PersonaBase):
         db.refresh(persona)
         return persona
 
-    
-#Endpoint para eliminar un persona
-@app.delete("/personas/{persona_id}",status_code=status.HTTP_204_NO_CONTENT)
-def eliminar_persona(persona_id: int):
-    persona = db.query(Persona).filter(Persona.id == persona_id).first()
-    if(persona is None):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
-    db.delete(persona)
-    db.commit()
-    return
-     
-    
-
-# POST /personas
-# Endpoint para crear una nueva persona en la base de datos
-# Recibe los datos necesarios mediante el modelo PersonaCreate
-# Calcula automáticamente la edad y establece habilitado_para_turno en True
-
+#Endpoin para crear una persona
 @app.post("/personas/", response_model=models.DatosPersona, status_code=status.HTTP_201_CREATED)
 def crear_persona(persona: PersonaCreate):
     # Calcular edad a partir de la fecha de nacimiento
@@ -197,7 +234,6 @@ def crear_persona(persona: PersonaCreate):
         (hoy.month, hoy.day) < (persona.fecha_de_nacimiento.month, persona.fecha_de_nacimiento.day)
     )
 
-    
 
 # Crear instancia de Persona para guardar en la base de datos
     nueva_persona = Persona(
@@ -214,42 +250,14 @@ def crear_persona(persona: PersonaCreate):
     db.commit()
     db.refresh(nueva_persona)
     return nueva_persona
-
-
-# POST /turnos
-# Endpoint para crear un nuevo turno para una persona existente
-# Valida que la persona exista y cumple reglas de negocio
-
-@app.post("/turnos/", response_model=models.models_Turnos, status_code=status.HTTP_201_CREATED)
-def crear_turno(turno: TurnoCreate):
-    # Validar que la persona exista en la base de datos
-    persona = db.query(Persona).filter(Persona.id == turno.persona_id).first()
-    if not persona:
-        raise HTTPException(status_code=404, detail="La persona no existe")
-
-    # Regla de negocio: no permitir si tiene 5 o más turnos cancelados en los últimos 6 meses
-    seis_meses_atras = date.today().replace(month=max(1, date.today().month - 6))
-    cancelados = (
-        db.query(Turnos)
-        .filter(Turnos.persona_id == turno.persona_id)
-        .filter(Turnos.estado == "cancelado")
-        .filter(Turnos.fecha >= seis_meses_atras)
-        .count()
-    )
-
-    if cancelados >= 5:
-        raise HTTPException(status_code=400, detail="La persona tiene demasiados turnos cancelados")
-
- # Crear nuevo turno con estado inicial "pendiente"
-    nuevo_turno = Turnos(
-        fecha=turno.fecha,
-        hora=turno.hora,
-        estado="pendiente",  # Siempre arranca en pendiente
-        persona_id=turno.persona_id
-    )
-
-# Guardar el turno en la base de datos
-    db.add(nuevo_turno)
+    
+#Endpoint para eliminar un persona
+@app.delete("/personas/{persona_id}",status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_persona(persona_id: int):
+    persona = db.query(Persona).filter(Persona.id == persona_id).first()
+    if(persona is None):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
+    db.delete(persona)
     db.commit()
-    db.refresh(nuevo_turno)
-    return nuevo_turno
+    return
+     
