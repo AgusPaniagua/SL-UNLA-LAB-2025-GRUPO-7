@@ -99,6 +99,7 @@ def traer_personas():
 # Endpoint para crear una nueva persona en la base de datos
 # Recibe los datos necesarios mediante el modelo PersonaCreate
 # Calcula automáticamente la edad y establece habilitado_para_turno en True
+
 @app.post("/personas/", response_model=models.DatosPersona, status_code=status.HTTP_201_CREATED)
 def crear_persona(persona: PersonaCreate):
     # Calcular edad a partir de la fecha de nacimiento
@@ -128,6 +129,7 @@ def crear_persona(persona: PersonaCreate):
 # POST /turnos
 # Endpoint para crear un nuevo turno para una persona existente
 # Valida que la persona exista y cumple reglas de negocio
+
 @app.post("/turnos/", response_model=models.models_Turnos, status_code=status.HTTP_201_CREATED)
 def crear_turno(turno: TurnoCreate):
     # Validar que la persona exista en la base de datos
