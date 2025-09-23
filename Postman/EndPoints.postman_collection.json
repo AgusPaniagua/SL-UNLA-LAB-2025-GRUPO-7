@@ -133,13 +133,45 @@
 					"response": []
 				},
 				{
-					"name": "Actualizar Turno por ID(turno no dispinible)",
+					"name": "Actualizar Turno por ID(error forzado estados)",
 					"request": {
 						"method": "PUT",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{   \r\n    \"fecha\": \"2025-09-11\",\r\n    \"hora\": \"14:00:00\",\r\n    \"estado\": \"confirmado\",\r\n    \"persona_id\": 6\r\n}\r\n",
+							"raw": "{   \r\n    \"estado\": \"ajdhad\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/turnos/1",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"turnos",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Actualizar Turno por ID(error forzado fecha hora)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{   \r\n    \"fecha\": \"aa:hh:ll\",\r\n    \"hora\": \"kdkdk\"\r\n}\r\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -195,233 +227,266 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Turnos Disponibles(verificando turno)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/turnos-disponibles?fecha=2025-09-11",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"turnos-disponibles"
+							],
+							"query": [
+								{
+									"key": "fecha",
+									"value": "2025-09-11"
+								}
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},
 		{
-			"name": "Listar Personas",
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
-			"request": {
-				"method": "GET",
-				"header": [],
-				"body": {
-					"mode": "formdata",
-					"formdata": []
-				},
-				"url": {
-					"raw": "http://127.0.0.1:8000/personas",
-					"protocol": "http",
-					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
-					],
-					"port": "8000",
-					"path": [
-						"personas"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Listar Persona por ID",
-			"request": {
-				"method": "GET",
-				"header": []
-			},
-			"response": []
-		},
-		{
-			"name": "Listar Persona por ID invalido",
-			"request": {
-				"method": "GET",
-				"header": []
-			},
-			"response": []
-		},
-		{
-			"name": "Crear Persona",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "   {\r\n    \"nombre\": \"\",\r\n    \"email\": \"\",\r\n    \"dni\": ,\r\n    \"telefono\": \"\",\r\n    \"fecha_de_nacimiento\": \"\"\r\n   } \r\n    ",
-					"options": {
-						"raw": {
-							"language": "json"
+			"name": "Persona",
+			"item": [
+				{
+					"name": "Listar Personas",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/personas",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"personas"
+							]
 						}
-					}
+					},
+					"response": []
 				},
-				"url": {
-					"raw": "http://127.0.0.1:8000/personas",
-					"protocol": "http",
-					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
-					],
-					"port": "8000",
-					"path": [
-						"personas"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Crear Persona con valores incorrectos",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "   {\r\n    \"nombre\": \"\",\r\n    \"email\": \"\",\r\n    \"dni\": ,\r\n    \"telefono\": \"\",\r\n    \"fecha_de_nacimiento\": \"\"\r\n   } \r\n    ",
-					"options": {
-						"raw": {
-							"language": "json"
+				{
+					"name": "Listar Persona por ID",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Persona por ID invalido",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Persona",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "   {\r\n    \"nombre\": \"\",\r\n    \"email\": \"\",\r\n    \"dni\": ,\r\n    \"telefono\": \"\",\r\n    \"fecha_de_nacimiento\": \"\"\r\n   } \r\n    ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/personas",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"personas"
+							]
 						}
-					}
+					},
+					"response": []
 				},
-				"url": {
-					"raw": "http://127.0.0.1:8000/personas",
-					"protocol": "http",
-					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
-					],
-					"port": "8000",
-					"path": [
-						"personas"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Modificar Persona",
-			"request": {
-				"method": "PUT",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "   {\r\n    \"nombre\": \"marcelo\",\r\n    \"email\": \"marcelo@gamil.com\",\r\n    \"dni\": 123,\r\n    \"telefono\": \"1125284\",\r\n    \"fecha_de_nacimiento\": \"1998-06-04\",\r\n    \"habilitado_para_turno\": true\r\n   } ",
-					"options": {
-						"raw": {
-							"language": "json"
+				{
+					"name": "Crear Persona con valores incorrectos",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "   {\r\n    \"nombre\": \"\",\r\n    \"email\": \"\",\r\n    \"dni\": ,\r\n    \"telefono\": \"\",\r\n    \"fecha_de_nacimiento\": \"\"\r\n   } \r\n    ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/personas",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"personas"
+							]
 						}
-					}
+					},
+					"response": []
 				},
-				"url": {
-					"raw": "http://127.0.0.1:8000/personas/3",
-					"protocol": "http",
-					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
-					],
-					"port": "8000",
-					"path": [
-						"personas",
-						"3"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Modificar Persona con datos invalidos",
-			"request": {
-				"method": "PUT",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "  {\r\n    \"nombre\": \"marcelo\",\r\n    \"email\": \"marcelogamil.com\",\r\n    \"dni\": 123,\r\n    \"telefono\": \"1125284\",\r\n    \"fecha_de_nacimiento\": \"2026-06-04\",\r\n    \"habilitado_para_turno\": true\r\n   } ",
-					"options": {
-						"raw": {
-							"language": "json"
+				{
+					"name": "Modificar Persona",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "   {\r\n    \"nombre\": \"marcelo\",\r\n    \"email\": \"marcelo@gamil.com\",\r\n    \"dni\": 123,\r\n    \"telefono\": \"1125284\",\r\n    \"fecha_de_nacimiento\": \"1998-06-04\",\r\n    \"habilitado_para_turno\": true\r\n   } ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/personas/3",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"personas",
+								"3"
+							]
 						}
-					}
+					},
+					"response": []
 				},
-				"url": {
-					"raw": "http://127.0.0.1:8000/personas/3",
-					"protocol": "http",
-					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
-					],
-					"port": "8000",
-					"path": [
-						"personas",
-						"3"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Eliminar Persona",
-			"request": {
-				"method": "DELETE",
-				"header": [],
-				"body": {
-					"mode": "formdata",
-					"formdata": []
+				{
+					"name": "Modificar Persona con datos invalidos",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "  {\r\n    \"nombre\": \"marcelo\",\r\n    \"email\": \"marcelogamil.com\",\r\n    \"dni\": 123,\r\n    \"telefono\": \"1125284\",\r\n    \"fecha_de_nacimiento\": \"2026-06-04\",\r\n    \"habilitado_para_turno\": true\r\n   } ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/personas/3",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"personas",
+								"3"
+							]
+						}
+					},
+					"response": []
 				},
-				"url": {
-					"raw": "http://127.0.0.1:8000/personas/1",
-					"protocol": "http",
-					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
-					],
-					"port": "8000",
-					"path": [
-						"personas",
-						"1"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Eliminar Persona con ID invalido",
-			"request": {
-				"method": "DELETE",
-				"header": [],
-				"body": {
-					"mode": "formdata",
-					"formdata": []
+				{
+					"name": "Eliminar Persona",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/personas/1",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"personas",
+								"1"
+							]
+						}
+					},
+					"response": []
 				},
-				"url": {
-					"raw": "http://127.0.0.1:8000/personas/100",
-					"protocol": "http",
-					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
-					],
-					"port": "8000",
-					"path": [
-						"personas",
-						"100"
-					]
+				{
+					"name": "Eliminar Persona con ID invalido",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/personas/100",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"personas",
+								"100"
+							]
+						}
+					},
+					"response": []
 				}
-			},
-			"response": []
+			]
 		}
 	]
 }
