@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Response, status, Query
 from sqlalchemy.orm import Session
 from database import SessionLocal, Turnos, Persona
 import models  # models.models_Turnos = modelo Pydantic
+from models import TurnoCreate, PersonaCreate
 from datetime import date
 from typing import Optional
 import re
@@ -13,49 +14,40 @@ ESTADOS_VALIDOS = ESTADOS_DISPONIBLES
 print("Verificamos desde var_entornos Horarios disponibles:", HORARIOS_DISPONIBLES)
 print("Verificamos desde var_entornos Estados disponibles:", ESTADOS_DISPONIBLES)
 
-# Modelo de datos para crear una nueva persona
-class PersonaCreate(BaseModel):
-    id: int
-    nombre: str
-    email: str
-    dni: int
-    telefono: Optional[str] = None
-    fecha_de_nacimiento: date
-
-# Modelo de datos para crear un nuevo turno
-class TurnoCreate(BaseModel):
-    fecha: date
-    hora: time
-    persona_id: int
-
-#Creacion de la instancia de FastApi
+# Creacion de la instancia de FastApi
 app = FastAPI()
-#Creacion de la session de base de datos
+# Creacion de la session de base de datos
 db: Session = SessionLocal()
+
 
 @app.get("/")
 def doc():
     return "Hola,presentamos la Api en python del Grupo 7"
 
-#Endpoints para turnos
+# Endpoints para turnos
+
 
 @app.get("/turnos/", response_model=list[models.models_Turnos])
 def leer_turnos():
     turnos = db.query(Turnos).all()
     return turnos
 
+
 @app.get("/turno/{turno_id}", response_model=models.models_Turnos)
 def leer_turno(turno_id: int):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
     if turno is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
     return turno
+
 
 @app.put("/turnos/{turno_id}", response_model=models.models_Turnos)
 def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
     if turno is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
     hubo_Cambios = False
     if turno_actualizado.fecha is not None:
         turno.fecha = turno_actualizado.fecha
@@ -69,17 +61,19 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
             hubo_Cambios = True
         else:
             if turno_actualizado.estado is not None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Estado inválido. Debe ser: pendiente, cancelado, confirmado o asistido.") 
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail="Estado inválido. Debe ser: pendiente, cancelado, confirmado o asistido.")
     if turno_actualizado.persona_id is not None:
         turno.persona_id = turno_actualizado.persona_id
         hubo_Cambios = True
 
     if hubo_Cambios == False:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-         
+
     db.commit()
     db.refresh(turno)
     return turno
+
 
 @app.post("/turnos/", response_model=models.models_Turnos, status_code=status.HTTP_201_CREATED)
 def crear_turno(turno: TurnoCreate):
@@ -88,16 +82,9 @@ def crear_turno(turno: TurnoCreate):
     if not persona:
         raise HTTPException(status_code=404, detail="La persona no existe")
 
-    # Verificar disponibilidad dentro de los slots
-    turnos_disponibles = calcular_turnos_disponibles(db, turno.fecha)
     hora_str = turno.hora.strftime("%H:%M")
-    if hora_str not in turnos_disponibles:
-        raise HTTPException(
-            status_code=400,
-            detail=f"La hora {hora_str} no está disponible para la fecha {turno.fecha}",
-        )
 
-    # Nuevo agregado: evitar que otro turno esté en la misma fecha y hora
+    # Evitar que otro turno esté en la misma fecha y hora y que si existe, tire la Exception correcta
     turno_existente = db.query(Turnos).filter(
         Turnos.fecha == turno.fecha,
         Turnos.hora == turno.hora,
@@ -107,6 +94,14 @@ def crear_turno(turno: TurnoCreate):
         raise HTTPException(
             status_code=400,
             detail=f"El horario {hora_str} ya está ocupado por otro turno"
+        )
+
+    # Verificar que la hora esté dentro de los slots disponibles, y si no lo está, tire la Exception
+    turnos_disponibles = calcular_turnos_disponibles(db, turno.fecha)
+    if hora_str not in turnos_disponibles:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La hora {hora_str} no está disponible para la fecha {turno.fecha}",
         )
 
     # Regla de negocio: no permitir si tiene 5 o más turnos cancelados en los últimos 6 meses
@@ -119,7 +114,8 @@ def crear_turno(turno: TurnoCreate):
         .count()
     )
     if cancelados >= 5:
-        raise HTTPException(status_code=400, detail="La persona tiene demasiados turnos cancelados")
+        raise HTTPException(
+            status_code=400, detail="La persona tiene demasiados turnos cancelados")
 
     # Crear nuevo turno con estado inicial "pendiente"
     nuevo_turno = Turnos(
@@ -135,14 +131,17 @@ def crear_turno(turno: TurnoCreate):
     db.refresh(nuevo_turno)
     return nuevo_turno
 
+
 @app.delete("/turno/{turno_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_turno(turno_id: int):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
     if turno is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
     db.delete(turno)
     db.commit()
     return
+
 
 @app.get("/turnos-disponibles")
 def turnos_disponibles(fecha: date = Query(..., description="YYYY-MM-DD")):
@@ -152,14 +151,18 @@ def turnos_disponibles(fecha: date = Query(..., description="YYYY-MM-DD")):
         "horarios_disponibles": horarios,
     }
 
-#Funcion para validar email
+# Funcion para validar email
+
+
 def validar_email(email: str):
     patron = r'^[\w\.-]+@[\w\.-]+\.\w+$'
     if not re.match(patron, email):
         raise ValueError("Email inválido")
     return True
 
-#Funcion para validar fecha de nacimiento
+# Funcion para validar fecha de nacimiento
+
+
 def validar_fecha_nacimiento(año, mes, dia):
     año_actual = date.today().year
     if año > año_actual:
@@ -170,88 +173,131 @@ def validar_fecha_nacimiento(año, mes, dia):
         raise ValueError("Fecha inválida")
     return fecha
 
-    
-#Endpoints para personas
 
-#Endpoin para traer a todas las personas
+# Endpoints para personas
+
+# Endpoin para traer a todas las personas
 @app.get("/personas/", response_model=list[models.DatosPersona])
 def traer_personas():
     personas = db.query(Persona).all()
     return personas
 
-#Endpoin para traer a una persona por su id
-@app.get("/personas/{persona_id}", response_model=models.DatosPersona)
-def traer_personas(persona_id: int):
-        persona = db.query(Persona).filter(Persona.id == persona_id).first()
-        if(persona is None):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
-        return persona
+# Endpoin para traer a una persona por su id
 
-#Endpoin para modificar una persona
-@app.put("/personas/{persona_id}",response_model=models.DatosPersona)
+
+@app.get("/personas/", response_model=list[models.DatosPersona])
+def traer_personas():
+    try:
+        personas = db.query(Persona).all()
+        return personas
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error al traer personas: {str(e)}")
+
+# Endpoin para modificar una persona
+
+
+@app.put("/personas/{persona_id}", response_model=models.DatosPersona)
 def modificar_persona(persona_id: int, persona_modificada: models.PersonaBase):
-        persona = db.query(Persona).filter(Persona.id == persona_id).first()
-        if(persona is None):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
-        if not(persona_modificada.nombre.strip()):
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El nombre no puede estar vacío")
-        persona.nombre=persona_modificada.nombre
-        if not(persona_modificada.email.strip()):
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El email no puede estar vacío")
+    persona = db.query(Persona).filter(Persona.id == persona_id).first()
+    if (persona is None):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
+    if not (persona_modificada.nombre.strip()):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="El nombre no puede estar vacío")
+    persona.nombre = persona_modificada.nombre
+    if not (persona_modificada.email.strip()):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="El email no puede estar vacío")
+    try:
+        validar_email(persona_modificada.email)
+        persona.email = persona_modificada.email
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if not (persona_modificada.telefono.strip()):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="El telefono no puede estar vacío")
+    persona.telefono = persona_modificada.telefono
+    if (persona_modificada.dni <= 0):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="El dni no puede ser 0 o negativo")
+    try:
+        fecha = persona_modificada.fecha_de_nacimiento
+        validar_fecha_nacimiento(fecha.year, fecha.month, fecha.day)
+        persona.fecha_de_nacimiento = fecha
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422, detail=f"Fecha de nacimiento inválida: {str(e)}")
+    persona.habilitado_para_turno = persona_modificada.habilitado_para_turno
+    db.commit()
+    db.refresh(persona)
+    return persona
+
+# Endpoin para crear una persona
+
+
+@app.post("/personas/", response_model=models.PersonaBase, status_code=status.HTTP_201_CREATED)
+def crear_persona(persona: models.PersonaCreate):
+    try:
+        # Validaciones básicas
+        if not persona.nombre.strip():
+            raise HTTPException(status_code=422, detail="El nombre no puede estar vacío")
+        if not persona.email.strip():
+            raise HTTPException(status_code=422, detail="El email no puede estar vacío")
+        if persona.dni <= 0:
+            raise HTTPException(status_code=422, detail="El DNI no puede ser 0 o negativo")
+        if not persona.telefono.strip():
+            raise HTTPException(status_code=422, detail="El teléfono no puede estar vacío")
+        if persona.fecha_de_nacimiento > date.today():
+            raise HTTPException(status_code=422, detail="La fecha de nacimiento no puede ser futura")
+        
+        # Validar formato de email
         try:
-            validar_email(persona_modificada.email)
-            persona.email = persona_modificada.email
+            validar_email(persona.email)
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e))
-        if not(persona_modificada.telefono.strip()):
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El telefono no puede estar vacío")
-        persona.telefono=persona_modificada.telefono
-        if (persona_modificada.dni <=0):
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El dni no puede ser 0 o negativo")
-        try:
-            fecha = persona_modificada.fecha_de_nacimiento
-            validar_fecha_nacimiento(fecha.year, fecha.month, fecha.day)
-            persona.fecha_de_nacimiento = fecha
-        except ValueError as e:
-            raise HTTPException(status_code=422, detail=f"Fecha de nacimiento inválida: {str(e)}")
-        persona.habilitado_para_turno=persona_modificada.habilitado_para_turno
+        
+        # Verificar si ya existe persona con mismo DNI o email
+        existe = db.query(Persona).filter(
+            (Persona.dni == persona.dni) | (Persona.email == persona.email)
+        ).first()
+        if existe:
+            raise HTTPException(status_code=400, detail="Ya existe una persona con ese DNI o email")
+        
+        # Calcular edad (opcional, si lo necesitas en la respuesta)
+        hoy = date.today()
+        edad = hoy.year - persona.fecha_de_nacimiento.year - (
+            (hoy.month, hoy.day) < (persona.fecha_de_nacimiento.month, persona.fecha_de_nacimiento.day)
+        )
+        
+        # Crear la persona
+        nueva_persona = Persona(
+            nombre=persona.nombre,
+            email=persona.email,
+            dni=persona.dni,
+            telefono=persona.telefono,
+            fecha_de_nacimiento=persona.fecha_de_nacimiento,
+            edad=edad,
+            habilitado_para_turno=True  # siempre habilitado al crear
+        )
+        
+        db.add(nueva_persona)
         db.commit()
-        db.refresh(persona)
-        return persona
+        db.refresh(nueva_persona)
+        
+        return nueva_persona
 
-#Endpoin para crear una persona
-@app.post("/personas/", response_model=models.DatosPersona, status_code=status.HTTP_201_CREATED)
-def crear_persona(persona: PersonaCreate):
-    # Calcular edad a partir de la fecha de nacimiento
-    hoy = date.today()
-    edad = hoy.year - persona.fecha_de_nacimiento.year - (
-        (hoy.month, hoy.day) < (persona.fecha_de_nacimiento.month, persona.fecha_de_nacimiento.day)
-    )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear persona: {str(e)}")
 
-
-# Crear instancia de Persona para guardar en la base de datos
-    nueva_persona = Persona(
-        nombre=persona.nombre,
-        email=persona.email,
-        dni=persona.dni,
-        telefono=persona.telefono,
-        fecha_de_nacimiento=persona.fecha_de_nacimiento,
-        habilitado_para_turno=True  # Por defecto habilitado para solicitar el turno
-    )
-
-# Guardar en la base de datos
-    db.add(nueva_persona)
-    db.commit()
-    db.refresh(nueva_persona)
-    return nueva_persona
-    
-#Endpoint para eliminar un persona
-@app.delete("/personas/{persona_id}",status_code=status.HTTP_204_NO_CONTENT)
+# Endpoint para eliminar un persona
+@app.delete("/personas/{persona_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_persona(persona_id: int):
     persona = db.query(Persona).filter(Persona.id == persona_id).first()
-    if(persona is None):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
+    if (persona is None):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
     db.delete(persona)
     db.commit()
     return
-     

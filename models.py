@@ -2,6 +2,19 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import date, time
 
+class PersonaCreate(BaseModel):
+    nombre: str
+    email: str
+    dni: int
+    telefono: Optional[str] = None
+    fecha_de_nacimiento: date
+
+# Modelo de datos para crear un nuevo turno
+class TurnoCreate(BaseModel):
+    fecha: date
+    hora: time
+    persona_id: int
+
 #Modelo para turnos
 class models_Turnos(BaseModel):
     id: Optional[int] = None
