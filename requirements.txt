@@ -3,3 +3,5 @@ sqlalchemy
 pandas
 borb
 uvicorn
+python-dotenv
+

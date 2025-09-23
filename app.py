@@ -8,6 +8,10 @@ import re
 from pydantic import BaseModel
 from datetime import date, time
 from turnosdisponibles import calcular_turnos_disponibles
+from config import HORARIOS_DISPONIBLES, ESTADOS_DISPONIBLES
+ESTADOS_VALIDOS = ESTADOS_DISPONIBLES
+print("Verificamos desde var_entornos Horarios disponibles:", HORARIOS_DISPONIBLES)
+print("Verificamos desde var_entornos Estados disponibles:", ESTADOS_DISPONIBLES)
 
 # Modelo de datos para crear una nueva persona
 class PersonaCreate(BaseModel):
@@ -34,10 +38,7 @@ def doc():
     return "Hola,presentamos la Api en python del Grupo 7"
 
 #Endpoints para turnos
-# Tener en cuenta al crear POST las siguientes validaciones:
-# Los estados posibles de un turno son pendiente, cancelado, confirmado y asistido. 
-# Los turnos deberán ser creados con estado "pendiente". 
-ESTADOS_VALIDOS = {"pendiente", "cancelado", "confirmado", "asistido"}
+
 @app.get("/turnos/", response_model=list[models.models_Turnos])
 def leer_turnos():
     turnos = db.query(Turnos).all()
@@ -59,14 +60,7 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
     if turno_actualizado.fecha is not None:
         turno.fecha = turno_actualizado.fecha
         hubo_Cambios = True
-    if turno_actualizado.hora is not None and turno_actualizado.hora != turno.hora: 
-        fecha_consulta = turno_actualizado.fecha if turno_actualizado.fecha else turno.fecha
-        turnos_disponibles = calcular_turnos_disponibles(db, fecha_consulta)
-        hora_str = turno_actualizado.hora.strftime("%H:%M")
-        if hora_str not in turnos_disponibles:
-            raise HTTPException(
-                status_code=400,detail=f"La hora {hora_str} no está disponible para la fecha {fecha_consulta}",
-            )
+    if turno_actualizado.hora is not None:
         turno.hora = turno_actualizado.hora
         hubo_Cambios = True
     if turno_actualizado.estado is not None:
