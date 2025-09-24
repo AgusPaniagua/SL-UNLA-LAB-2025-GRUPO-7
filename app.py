@@ -184,15 +184,14 @@ def traer_personas():
 
 # Endpoin para traer a una persona por su id
 
-
-@app.get("/personas/", response_model=list[models.DatosPersona])
-def traer_personas():
-    try:
-        personas = db.query(Persona).all()
-        return personas
-    except Exception as e:
+@app.get("/personas/{persona_id}", response_model=models.DatosPersona)
+def traer_personas(persona_id: int):
+    persona = db.query(Persona).filter(Persona.id == persona_id).first()
+    if persona is None:
         raise HTTPException(
-            status_code=500, detail=f"Error al traer personas: {str(e)}")
+            status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
+    return persona
+    
 
 # Endpoin para modificar una persona
 
