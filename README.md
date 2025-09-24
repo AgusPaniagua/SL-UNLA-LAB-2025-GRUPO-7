@@ -2,6 +2,12 @@
 
 Proyecto API REST para Python
 
+Link al video de presentacion al proyecto
+https://youtu.be/qUAeDLjMFKY
+
+Link a la collections de Postman
+https://www.postman.com/aguspaniagua1998-3456770/workspace/endpoints-grupo-7
+
 ---
 
 # Instalación
