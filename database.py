@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String , Date, Time, Boolean
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String , Date, Time, Boolean, ForeignKey
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import date, time
 
 #Creacion y configuracion de la base de datos
@@ -14,7 +14,10 @@ class Turnos(Base):
     fecha = Column(Date, nullable=False) 
     hora = Column(Time, nullable=False)
     estado = Column(String, nullable=False)
-    persona_id = Column(Integer, nullable=False)  
+    #persona_id = Column(Integer, nullable=False)
+    persona_id = Column(Integer, ForeignKey('personas.id'), nullable=False)
+    persona = relationship("Persona", back_populates="turnos")
+     
 
 #Creacion de tabla personas
 class Persona(Base):
@@ -27,6 +30,7 @@ class Persona(Base):
     fecha_de_nacimiento = Column(Date, nullable=False)
     edad = Column(Integer, nullable=False)
     habilitado_para_turno = Column(Boolean, nullable=False)
+    turnos = relationship("Turnos", back_populates="persona")
 
 #Creacion de las tablas en la base de datos
 Base.metadata.create_all(engine) 

@@ -3,18 +3,6 @@ from sqlalchemy.orm import Session
 from database import Turnos
 from config import HORARIOS_DISPONIBLES, ESTADOS_DISPONIBLES
 
-def _generar_slots() -> list[time]:
-    # Genera slots de 09:00 a 16:30 cada 30 minutos
-    slots = []
-    h, m = 9, 0
-    while True:
-        slots.append(time(hour=h, minute=m))
-        if h == 16 and m == 30:
-            break
-        m = 30 if m == 0 else 0
-        if m == 0:
-            h += 1
-    return slots
 
 def calcular_turnos_disponibles(db: Session, fecha: date) -> list[str]:
     #Devuelve los horarios disponibles  para la fecha dada.

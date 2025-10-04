@@ -1,13 +1,19 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date, time
-
-class PersonaCreate(BaseModel):
+    
+class DatosPersona(BaseModel):
+    id: int
     nombre: str
     email: str
     dni: int
-    telefono: Optional[str] = None
+    telefono: str
     fecha_de_nacimiento: date
+    edad: int
+    habilitado_para_turno: bool
+    model_config={
+        "from_attributes": True
+    }
 
 # Modelo de datos para crear un nuevo turno
 class TurnoCreate(BaseModel):
@@ -22,6 +28,7 @@ class models_Turnos(BaseModel):
     hora: time
     estado: str
     persona_id: int
+    persona: Optional[DatosPersona] = None
 
     model_config = {
         "from_attributes": True  # Así le decís a Pydantic v2 que use atributos del ORM
@@ -48,15 +55,9 @@ class PersonaBase(BaseModel):
         "from_attributes": True
     }
 
-class DatosPersona(BaseModel):
-    id: int
+class PersonaCreate(BaseModel):
     nombre: str
     email: str
     dni: int
-    telefono: str
+    telefono: Optional[str] = None
     fecha_de_nacimiento: date
-    edad: int
-    habilitado_para_turno: bool
-    model_config={
-        "from_attributes": True
-    }

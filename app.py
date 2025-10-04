@@ -42,7 +42,7 @@ def leer_turno(turno_id: int):
     return turno
 
 
-@app.put("/turnos/{turno_id}", response_model=models.models_Turnos)
+@app.patch("/turnos/{turno_id}", response_model=models.models_Turnos)
 def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
     if turno is None:
@@ -62,13 +62,34 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
         else:
             if turno_actualizado.estado is not None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail="Estado inválido. Debe ser: pendiente, cancelado, confirmado o asistido.")
+                                    detail= f"Estado inválido. Debe ser: {', '.join(ESTADOS_VALIDOS)}.")
     if turno_actualizado.persona_id is not None:
         turno.persona_id = turno_actualizado.persona_id
         hubo_Cambios = True
 
     if hubo_Cambios == False:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    db.commit()
+    db.refresh(turno)
+    return turno
+
+@app.put("/turnos/{turno_id}", response_model=models.models_Turnos)
+def actualizar_turno_put(turno_id: int, turno_actualizado: models.models_Turnos):
+    turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
+    if turno is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado"
+        )
+    if turno_actualizado.estado not in ESTADOS_VALIDOS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail= f"Estado inválido. Debe ser: {', '.join(ESTADOS_VALIDOS)}.")
+    
+    turno.fecha = turno_actualizado.fecha
+    turno.hora = turno_actualizado.hora
+    turno.estado = turno_actualizado.estado
+    turno.persona_id = turno_actualizado.persona_id
 
     db.commit()
     db.refresh(turno)
