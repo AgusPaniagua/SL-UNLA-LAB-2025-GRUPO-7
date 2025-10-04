@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import date, time
     
 class DatosPersona(BaseModel):
@@ -61,3 +61,29 @@ class PersonaCreate(BaseModel):
     dni: int
     telefono: Optional[str] = None
     fecha_de_nacimiento: date
+
+#Persona para la respuesta del Get(/turnos/fecha/) de los turnos por fecha
+class PersonaInfo(BaseModel):
+    nombre: str
+    dni: int
+#Turno para la respuesta del Get(/turnos/fecha/) de los turnos por fecha
+class TurnoConPersonaPorFecha(BaseModel):
+    id: int
+    fecha: date
+    hora: time
+    estado: str
+    persona_id: int
+    persona: PersonaInfo
+
+class TurnoCanceladoInfo(BaseModel):
+    id: int
+    persona_id: int
+    fecha: date
+    hora: time
+    estado: str
+
+class TurnosCanceladosPorMes(BaseModel):
+    anio: int
+    mes: str
+    cantidad: int
+    turnos: List[TurnoCanceladoInfo]

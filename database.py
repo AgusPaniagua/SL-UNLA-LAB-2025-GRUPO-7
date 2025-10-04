@@ -36,16 +36,16 @@ class Persona(Base):
 Base.metadata.create_all(engine) 
 
 db = SessionLocal()
-#Creacion de datos para la base datos por si no tiene ningun turno cargado
-if db.query(Turnos).count() == 0:
-    turno1 = Turnos(fecha=date(2025, 9, 10), hora=time(10, 30), estado="pendiente", persona_id=1)
-    turno2 = Turnos(fecha=date(2025, 9, 11), hora=time(14, 0), estado="confirmado", persona_id=2)
+# #Creacion de datos para la base datos por si no tiene ningun turno cargado
+# if db.query(Turnos).count() == 0:
+#     turno1 = Turnos(fecha=date(2025, 9, 10), hora=time(10, 30), estado="pendiente", persona_id=1)
+#     turno2 = Turnos(fecha=date(2025, 9, 11), hora=time(14, 0), estado="confirmado", persona_id=2)
     
-    db.add_all([turno1, turno2])
-    db.commit()
-    print("Turnos insertados.")
-else:
-    print("Ya existen turnos en la base.")
+#     db.add_all([turno1, turno2])
+#     db.commit()
+#     print("Turnos insertados.")
+# else:
+#     print("Ya existen turnos en la base.")
 
 #Creacion de datos para la base datos por si no tiene ninguna persona cargada
 if db.query(Persona).count() == 0:
@@ -73,5 +73,17 @@ if db.query(Persona).count() == 0:
     print("Personas insertadas.")
 else:
     print("Ya existen personas en la base.")
+
+#Creacion de datos para la base datos por si no tiene ningun turno cargado
+if db.query(Turnos).count() == 0:
+    
+    turno1 = Turnos(fecha=date(2025, 9, 10), hora=time(10, 30), estado="pendiente", persona_id=1)
+    turno2 = Turnos(fecha=date(2025, 9, 11), hora=time(14, 0), estado="confirmado", persona_id=2)
+    
+    db.add_all([turno1, turno2])
+    db.commit()
+    print("Turnos insertados.")
+else:
+    print("Ya existen turnos en la base.")
 
 db.close()
