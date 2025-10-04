@@ -732,5 +732,59 @@
 			},
 			"response": []
 		}
+		{
+					"name": "Lista de turnos de una persona mediante el dni",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/reportes/turnos-por-personas/123456789",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"reportes",
+								"turnos-por-personas",
+								"123456789"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "lista de personas por parametro habilitado_para_turno",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/reportes/estado-personas/?habilitado_para_turno=true",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"reportes",
+								"estado-personas",
+								""
+							],
+							"query": [
+								{
+									"key": "habilitado_para_turno",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				}
 	]
 }
