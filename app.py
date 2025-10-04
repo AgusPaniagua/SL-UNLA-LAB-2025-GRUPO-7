@@ -372,3 +372,26 @@ def eliminar_persona(persona_id: int):
     db.delete(persona)
     db.commit()
     return
+
+#Endopoint para traer todos los turnos de una persona mediante el dni 
+@app.get("/reportes/turnos-por-personas/{dni}",response_model=list[models.models_Turnos])
+def traer_turnos_por_dni_de_persona(dni: int):
+    try:
+        persona=db.query(Persona).filter(Persona.dni==dni).first()
+        if (persona is None):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
+        turnos=db.query(Turnos).join(Persona, Turnos.persona_id==Persona.id).filter(Persona.dni==dni).all()
+        return turnos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al buscar persona: {str(e)}")
+
+
+#Endpoint para traer todas las personas mediante el parametro habilitado_para_turno
+@app.get("/reportes/estado-personas/",response_model=list[models.DatosPersona])
+def traer_personas_por_estado_de_turno(habilitado_para_turno: bool):
+    try:
+        personas=db.query(Persona).filter(Persona.habilitado_para_turno==habilitado_para_turno).all()
+        return personas
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
