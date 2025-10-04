@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "298b0a68-b0ba-4dd3-b807-7048bb93bc95",
+		"_postman_id": "99106b86-c98a-4c0a-8d8c-bb7cff05e304",
 		"name": "EndPoints",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "48689933",
-		"_collection_link": "https://aguspaniagua1998-3456770.postman.co/workspace/agustin's-Workspace~143e45a0-6c8c-4122-80dc-c778cd753c5d/collection/48493596-298b0a68-b0ba-4dd3-b807-7048bb93bc95?action=share&source=collection_link&creator=48689933"
+		"_exporter_id": "48633848",
+		"_collection_link": "https://aguspaniagua1998-3456770.postman.co/workspace/agustin's-Workspace~143e45a0-6c8c-4122-80dc-c778cd753c5d/collection/48633848-99106b86-c98a-4c0a-8d8c-bb7cff05e304?action=share&source=collection_link&creator=48633848"
 	},
 	"item": [
 		{
@@ -133,9 +133,9 @@
 					"response": []
 				},
 				{
-					"name": "Actualizar Turno por ID(error forzado estados)",
+					"name": "Actualización parcial Turno por ID(error forzado estados)",
 					"request": {
-						"method": "PUT",
+						"method": "PATCH",
 						"header": [],
 						"body": {
 							"mode": "raw",
@@ -165,9 +165,9 @@
 					"response": []
 				},
 				{
-					"name": "Actualizar Turno por ID(error forzado fecha hora)",
+					"name": "Actualización parcial Turno por ID(error forzado fecha hora)",
 					"request": {
-						"method": "PUT",
+						"method": "PATCH",
 						"header": [],
 						"body": {
 							"mode": "raw",
@@ -197,13 +197,77 @@
 					"response": []
 				},
 				{
-					"name": "Actualizar Turno",
+					"name": "Actualización parcial Truno por ID",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{   \r\n    \"estado\": \"ajdhad\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/turnos/1",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"turnos",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Actualizar Turno por ID(error forzado requiere todos los campos)",
 					"request": {
 						"method": "PUT",
 						"header": [],
 						"body": {
 							"mode": "raw",
 							"raw": "{   \r\n    \"estado\": \"confirmado\"\r\n}\r\n\r\n\r\n//asistido\r\n//confirmado",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/turnos/1",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"turnos",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Actualizar Turno por ID",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"fecha\": \"2025-09-10\",\r\n    \"hora\": \"10:30:00\",\r\n    \"estado\": \"asistido\",\r\n    \"persona_id\": 1\r\n}\r\n\r\n//asistido\r\n//confirmado",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -313,6 +377,63 @@
 							"port": "8000",
 							"path": [
 								"turnos"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTurnosFechaConPersona",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/reportes/turnos-por-fecha?fecha=2025-09-11",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"reportes",
+								"turnos-por-fecha"
+							],
+							"query": [
+								{
+									"key": "fecha",
+									"value": "2025-09-11"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetTurnosFechaConPersonaSinResultados",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "GETturnos-cancelados-por-mes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8000/reportes/turnos-cancelados-por-mes",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"reportes",
+								"turnos-cancelados-por-mes"
 							]
 						}
 					},
