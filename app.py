@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Response, status, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import extract
+from sqlalchemy import extract, func
 from database import SessionLocal, Turnos, Persona
 import models  # models.models_Turnos = modelo Pydantic
 from models import TurnoCreate, PersonaCreate
@@ -204,6 +204,39 @@ def crear_turno(turno: TurnoCreate):
     return nuevo_turno
 
 
+@app.put("/turnos/{turno_id}/confirmar", response_model=models.models_Turnos)
+def confirmar_turno(turno_id: int):
+    turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
+    
+    #Si el turno no se encuentra, da esta excepcion
+    if turno is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Turno no encontrado"
+        )
+    
+    #Si el estado del turno está cancelado, no te deja confirmar el mismo
+    if turno.estado == "cancelado":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede confirmar un turno cancelado"
+        )
+    
+    #Si el turno ya se encuentra confirmado, no se puede volver a confirmar
+    if turno.estado == "confirmado":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El turno ya está confirmado"
+        )
+    
+    #Cambia el estado del turno y por ultimo te retorna el detalle del turno
+    turno.estado = "confirmado"
+    db.commit()
+    db.refresh(turno)
+    
+    return turno
+
+
 @app.delete("/turno/{turno_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_turno(turno_id: int):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
@@ -385,6 +418,66 @@ def traer_turnos_por_dni_de_persona(dni: int):
         return turnos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al buscar persona: {str(e)}")
+    
+#Endopoint para traer a las personas que tienen minimo 5 turnos cancelados, y el detalle de cada turno
+@app.get(
+    "/reportes/turnos-cancelados",
+    response_model=list[models.ReportePersonasConTurnosCancelados]
+)
+def obtener_personas_con_turnos_cancelados(
+    min: int = Query(5, ge=1, description="Cantidad mínima de turnos cancelados")
+):
+    """
+    Devuelve las personas con al menos 'min' turnos cancelados,
+    indicando cuántos turnos tienen y el detalle de cada uno.
+    """
+
+    # Buscar personas con al menos 'min' turnos cancelados
+    resultados = (
+        db.query(Persona, func.count(Turnos.id).label("cantidad_cancelados"))
+        .join(Turnos, Persona.id == Turnos.persona_id)
+        .filter(Turnos.estado == "cancelado")
+        .group_by(Persona.id)
+        .having(func.count(Turnos.id) >= min)
+        .all()
+    )
+
+    if not resultados:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No hay personas con {min} o más turnos cancelados"
+        )
+
+    respuesta = []
+    for persona, cantidad in resultados:
+        # Obtener los turnos cancelados de esta persona
+        turnos_detalle = (
+            db.query(Turnos)
+            .filter(Turnos.persona_id == persona.id, Turnos.estado == "cancelado")
+            .all()
+        )
+
+        # Construir la estructura del reporte según el modelo
+        respuesta.append(models.ReportePersonasConTurnosCancelados(
+            persona=models.PersonaConTurnosCancelados(
+                id=persona.id,
+                nombre=persona.nombre,
+                email=persona.email,
+                dni=persona.dni,
+                telefono=persona.telefono
+            ),
+            cantidad_cancelados=cantidad,
+            turnos=[
+                models.TurnoCanceladoDetalle(
+                    id=t.id,
+                    fecha=t.fecha,
+                    hora=t.hora,
+                    estado=t.estado
+                ) for t in turnos_detalle
+            ]
+        ))
+
+    return respuesta
 
 
 #Endpoint para traer todas las personas mediante el parametro habilitado_para_turno

@@ -87,3 +87,24 @@ class TurnosCanceladosPorMes(BaseModel):
     mes: str
     cantidad: int
     turnos: List[TurnoCanceladoInfo]
+
+class TurnoCanceladoDetalle(BaseModel):
+    """Detalle de cada turno cancelado"""
+    id: int
+    fecha: date
+    hora: time
+    estado: str
+
+class PersonaConTurnosCancelados(BaseModel):
+    """Información de la persona con turnos cancelados"""
+    id: int
+    nombre: str
+    email: str
+    dni: int
+    telefono: str
+
+class ReportePersonasConTurnosCancelados(BaseModel):
+    """Modelo principal del reporte /reportes/turnos-cancelados"""
+    persona: PersonaConTurnosCancelados
+    cantidad_cancelados: int
+    turnos: List[TurnoCanceladoDetalle]    
