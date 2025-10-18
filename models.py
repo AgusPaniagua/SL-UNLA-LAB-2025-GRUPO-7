@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from typing import Optional, List
 from datetime import date, time
     
@@ -88,6 +88,23 @@ class TurnosCanceladosPorMes(BaseModel):
     cantidad: int
     turnos: List[TurnoCanceladoInfo]
 
+
+#Turno para respuesta PUT /turnos/{id}/cancelar 
+class TurnoSalida(BaseModel):
+    id: int
+    persona: DatosPersona      
+    fecha: date
+    hora: time
+    estado: str
+
+    model_config = {"from_attributes": True}
+
+    @field_serializer("hora")
+    def _formatear_hora(self, v: time, _info):
+        return v.strftime("%H:%M")
+
+
+# ---- Modelos para reporte: personas con N turnos cancelados ----
 class TurnoCanceladoDetalle(BaseModel):
     """Detalle de cada turno cancelado"""
     id: int
@@ -107,4 +124,4 @@ class ReportePersonasConTurnosCancelados(BaseModel):
     """Modelo principal del reporte /reportes/turnos-cancelados"""
     persona: PersonaConTurnosCancelados
     cantidad_cancelados: int
-    turnos: List[TurnoCanceladoDetalle]    
+    turnos: List[TurnoCanceladoDetalle]
