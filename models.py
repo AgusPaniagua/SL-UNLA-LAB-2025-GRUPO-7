@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from typing import Optional, List
 from datetime import date, time
     
@@ -87,3 +87,17 @@ class TurnosCanceladosPorMes(BaseModel):
     mes: str
     cantidad: int
     turnos: List[TurnoCanceladoInfo]
+
+#Turno para respuesta PUT /turnos/{id}/cancelar 
+class TurnoSalida(BaseModel):
+    id: int
+    persona: DatosPersona      
+    fecha: date
+    hora: time
+    estado: str
+
+    model_config = {"from_attributes": True}
+
+    @field_serializer("hora")
+    def _formatear_hora(self, v: time, _info):
+        return v.strftime("%H:%M")

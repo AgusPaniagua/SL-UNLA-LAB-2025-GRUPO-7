@@ -146,6 +146,27 @@ def actualizar_turno_put(turno_id: int, turno_actualizado: models.models_Turnos)
     db.refresh(turno)
     return turno
 
+@app.put("/turnos/{turno_id}/cancelar", response_model=models.TurnoSalida)
+def cancelar_turno(turno_id: int):
+    turno = (
+        db.query(Turnos)
+        .options(joinedload(Turnos.persona))  
+        .filter(Turnos.id == turno_id)
+        .first()
+    )
+    if turno is None:
+        raise HTTPException(status_code=404, detail="Turno no encontrado")
+    #Regla de negocio: No se puede cancelar un turno asistido 
+    if turno.estado == "asistido":
+        raise HTTPException(status_code=409, detail="No se puede cancelar un turno asistido.")
+    if turno.estado == "cancelado":
+        raise HTTPException(status_code=409, detail="El turno ya está cancelado.")
+
+    turno.estado = "cancelado"
+    db.add(turno)
+    db.commit()
+    db.refresh(turno)
+    return turno
 
 @app.post("/turnos/", response_model=models.models_Turnos, status_code=status.HTTP_201_CREATED)
 def crear_turno(turno: TurnoCreate):
@@ -210,6 +231,9 @@ def eliminar_turno(turno_id: int):
     if turno is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
+    # Regla de negocio: No se pueden eliminar turnos asistidos
+    if turno.estado == "asistido":
+        raise HTTPException(status_code=409, detail="No se puede eliminar un turno asistido.")
     db.delete(turno)
     db.commit()
     return
