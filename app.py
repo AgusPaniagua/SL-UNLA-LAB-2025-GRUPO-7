@@ -517,3 +517,40 @@ def traer_personas_por_estado_de_turno(habilitado_para_turno: bool):
         return personas
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+#Endpoint para traer los turnos confirmados en un período de tiempo
+@app.get("/reportes/turnos-confirmados", response_model=models.ReporteTurnosConfirmados)
+def turnos_confirmados(
+    desde: date = Query(..., description="AAAA-MM-DD"),
+    hasta: date = Query(..., description="AAAA-MM-DD"),
+    pagina: int = Query(1, ge=1, description="Número de página (>=1)")
+):
+    if desde > hasta:
+        raise HTTPException(status_code=400, detail="El parámetro 'desde' no puede ser mayor que 'hasta'.")
+
+    POR_PAGINA = 5
+
+    consulta_turnos_confirmados = (
+        db.query(Turnos)
+        .options(joinedload(Turnos.persona))
+        .filter(Turnos.estado == "confirmado")
+        .filter(Turnos.fecha >= desde)
+        .filter(Turnos.fecha <= hasta)   
+        .order_by(Turnos.fecha.asc(), Turnos.hora.asc(), Turnos.id.asc())
+    )
+
+    total = consulta_turnos_confirmados.count()
+    total_paginas = (total + POR_PAGINA - 1) // POR_PAGINA if total > 0 else 0
+    offset = (pagina - 1) * POR_PAGINA
+
+    items = consulta_turnos_confirmados.offset(offset).limit(POR_PAGINA).all() if total == 0 or offset < total else []
+
+    return models.ReporteTurnosConfirmados(
+        desde=desde,
+        hasta=hasta,
+        pagina=pagina,
+        por_pagina=POR_PAGINA,
+        total=total,
+        total_paginas=total_paginas,
+        resultados=items,  
+    )

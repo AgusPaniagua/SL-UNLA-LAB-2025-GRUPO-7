@@ -125,3 +125,14 @@ class ReportePersonasConTurnosCancelados(BaseModel):
     persona: PersonaConTurnosCancelados
     cantidad_cancelados: int
     turnos: List[TurnoCanceladoDetalle]
+
+#Turno para respuesta de reporte desde/hasta
+class ReporteTurnosConfirmados(BaseModel):
+    desde: date
+    hasta: date
+    pagina: int
+    por_pagina: int
+    total: int
+    total_paginas: int
+    resultados: List[TurnoSalida]   
+    model_config = {"from_attributes": True}
