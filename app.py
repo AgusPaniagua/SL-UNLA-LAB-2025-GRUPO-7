@@ -100,6 +100,12 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
     hubo_Cambios = False
+    #Regla de negocio la cual indica que no se puede modificar un turno asistido o cancelado
+    if turno.estado in ["asistido", "cancelado"]:
+        raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"No se puede modificar un turno con estado '{turno.estado}'."
+    )
     if turno_actualizado.fecha is not None:
         turno.fecha = turno_actualizado.fecha
         hubo_Cambios = True
@@ -132,6 +138,12 @@ def actualizar_turno_put(turno_id: int, turno_actualizado: models.models_Turnos)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado"
         )
+    #Regla de negocio la cual indica que no se puede modificar un turno asistido o cancelado
+    if turno.estado in ["asistido", "cancelado"]:
+        raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"No se puede modificar un turno con estado '{turno.estado}'."
+    )
     if turno_actualizado.estado not in ESTADOS_VALIDOS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -144,6 +156,38 @@ def actualizar_turno_put(turno_id: int, turno_actualizado: models.models_Turnos)
 
     db.commit()
     db.refresh(turno)
+    return turno
+
+@app.put("/turnos/{turno_id}/confirmar", response_model=models.TurnoSalida)
+def confirmar_turno(turno_id: int):
+    turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
+    
+    #Si el turno no se encuentra, da esta excepcion
+    if turno is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Turno no encontrado"
+        )
+    
+    #Si el estado del turno está cancelado, no te deja confirmar el mismo
+    if turno.estado == "cancelado":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede confirmar un turno cancelado"
+        )
+    
+    #Si el turno ya se encuentra confirmado, no se puede volver a confirmar
+    if turno.estado == "confirmado":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El turno ya está confirmado"
+        )
+    
+    #Cambia el estado del turno y por ultimo te retorna el detalle del turno
+    turno.estado = "confirmado"
+    db.commit()
+    db.refresh(turno)
+    
     return turno
 
 @app.put("/turnos/{turno_id}/cancelar", response_model=models.TurnoSalida)
@@ -223,40 +267,6 @@ def crear_turno(turno: TurnoCreate):
     db.commit()
     db.refresh(nuevo_turno)
     return nuevo_turno
-
-
-@app.put("/turnos/{turno_id}/confirmar", response_model=models.models_Turnos)
-def confirmar_turno(turno_id: int):
-    turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
-    
-    #Si el turno no se encuentra, da esta excepcion
-    if turno is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Turno no encontrado"
-        )
-    
-    #Si el estado del turno está cancelado, no te deja confirmar el mismo
-    if turno.estado == "cancelado":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No se puede confirmar un turno cancelado"
-        )
-    
-    #Si el turno ya se encuentra confirmado, no se puede volver a confirmar
-    if turno.estado == "confirmado":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El turno ya está confirmado"
-        )
-    
-    #Cambia el estado del turno y por ultimo te retorna el detalle del turno
-    turno.estado = "confirmado"
-    db.commit()
-    db.refresh(turno)
-    
-    return turno
-
 
 @app.delete("/turno/{turno_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_turno(turno_id: int):
@@ -451,11 +461,6 @@ def traer_turnos_por_dni_de_persona(dni: int):
 def obtener_personas_con_turnos_cancelados(
     min: int = Query(5, ge=1, description="Cantidad mínima de turnos cancelados")
 ):
-    """
-    Devuelve las personas con al menos 'min' turnos cancelados,
-    indicando cuántos turnos tienen y el detalle de cada uno.
-    """
-
     # Buscar personas con al menos 'min' turnos cancelados
     resultados = (
         db.query(Persona, func.count(Turnos.id).label("cantidad_cancelados"))
