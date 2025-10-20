@@ -541,9 +541,18 @@ def turnos_confirmados(
 
     total = consulta_turnos_confirmados.count()
     total_paginas = (total + POR_PAGINA - 1) // POR_PAGINA if total > 0 else 0
-    offset = (pagina - 1) * POR_PAGINA
+    desplazamiento = (pagina - 1) * POR_PAGINA
 
-    items = consulta_turnos_confirmados.offset(offset).limit(POR_PAGINA).all() if total == 0 or offset < total else []
+    if total > 0 and pagina > total_paginas:
+        elementos_pagina = []
+    else:
+        elementos_pagina = (
+            consulta_turnos_confirmados
+                .offset(desplazamiento)
+                .limit(POR_PAGINA)
+                .all()
+        )
+
 
     return models.ReporteTurnosConfirmados(
         desde=desde,
@@ -552,5 +561,5 @@ def turnos_confirmados(
         por_pagina=POR_PAGINA,
         total=total,
         total_paginas=total_paginas,
-        resultados=items,  
+        resultados=elementos_pagina,  
     )
