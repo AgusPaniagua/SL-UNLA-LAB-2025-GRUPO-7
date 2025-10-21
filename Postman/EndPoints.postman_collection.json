@@ -3,8 +3,8 @@
 		"_postman_id": "99106b86-c98a-4c0a-8d8c-bb7cff05e304",
 		"name": "EndPoints",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "48633848",
-		"_collection_link": "https://aguspaniagua1998-3456770.postman.co/workspace/agustin's-Workspace~143e45a0-6c8c-4122-80dc-c778cd753c5d/collection/48633848-99106b86-c98a-4c0a-8d8c-bb7cff05e304?action=share&source=collection_link&creator=48633848"
+		"_exporter_id": "48493596",
+		"_collection_link": "https://aguspaniagua1998-3456770.postman.co/workspace/agustin's-Workspace~143e45a0-6c8c-4122-80dc-c778cd753c5d/collection/48633848-99106b86-c98a-4c0a-8d8c-bb7cff05e304?action=share&source=collection_link&creator=48493596"
 	},
 	"item": [
 		{
@@ -383,6 +383,37 @@
 					"response": []
 				},
 				{
+					"name": "Crear turno con horario erroneo",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"fecha\": \"2025-12-29\",\r\n  \"hora\": \"14:15:00\",\r\n  \"persona_id\": 1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:8000/turnos",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"turnos"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "GetTurnosFechaConPersona",
 					"request": {
 						"method": "GET",
@@ -434,6 +465,59 @@
 							"path": [
 								"reportes",
 								"turnos-cancelados-por-mes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GETturnosCanceladosMin5",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/reportes/turnos-cancelados?min=5",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"reportes",
+								"turnos-cancelados"
+							],
+							"query": [
+								{
+									"key": "min",
+									"value": "5"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ConfirmarTurno",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "http://127.0.0.1:8000/turnos/14/confirmar",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8000",
+							"path": [
+								"turnos",
+								"14",
+								"confirmar"
 							]
 						}
 					},
@@ -698,42 +782,9 @@
 						}
 					},
 					"response": []
-				}
-			]
-		},
-		{
-			"name": "Crear turno con horario erroneo",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n  \"fecha\": \"2025-12-29\",\r\n  \"hora\": \"14:15:00\",\r\n  \"persona_id\": 1\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
 				},
-				"url": {
-					"raw": "http://127.0.0.1:8000/turnos",
-					"protocol": "http",
-					"host": [
-						"127",
-						"0",
-						"0",
-						"1"
-					],
-					"port": "8000",
-					"path": [
-						"turnos"
-					]
-				}
-			},
-			"response": []
-		}
-		{
-					"name": "Lista de turnos de una persona mediante el dni",
+				{
+					"name": "Traer turnos de una persona mediante dni",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -757,7 +808,7 @@
 					"response": []
 				},
 				{
-					"name": "lista de personas por parametro habilitado_para_turno",
+					"name": "Traer personas por estado de habilitado o no",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -786,5 +837,7 @@
 					},
 					"response": []
 				}
+			]
+		}
 	]
 }
