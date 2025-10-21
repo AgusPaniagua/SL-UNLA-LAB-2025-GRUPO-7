@@ -136,3 +136,15 @@ class ReporteTurnosConfirmados(BaseModel):
     total_paginas: int
     resultados: List[TurnoSalida]   
     model_config = {"from_attributes": True}
+
+class TurnoInfoDni(BaseModel):
+    id: int
+    fecha: date
+    hora: time
+    estado: str
+
+    
+
+class PersonaConTurnos(BaseModel):
+    persona: DatosPersona # La información de la persona una sola vez
+    turnos: List[TurnoInfoDni] # Un array con todos los turnos

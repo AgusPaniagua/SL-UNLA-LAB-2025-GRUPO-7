@@ -441,15 +441,40 @@ def eliminar_persona(persona_id: int):
     return
 
 #Endopoint para traer todos los turnos de una persona mediante el dni 
-@app.get("/reportes/turnos-por-personas/{dni}",response_model=list[models.models_Turnos])
+@app.get("/reportes/turnos-por-personas/{dni}",response_model=list[models.PersonaConTurnos])
 def traer_turnos_por_dni_de_persona(dni: int):
     try:
-        persona=db.query(Persona).filter(Persona.dni==dni).first()
-        if (persona is None):
+        persona_db = (
+            db.query(Persona)
+            .filter(Persona.dni == dni)
+            .options(joinedload(Persona.turnos))
+            .first()
+        )
+
+        if persona_db is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
-        turnos=db.query(Turnos).join(Persona, Turnos.persona_id==Persona.id).filter(Persona.dni==dni).all()
-        return turnos
+                status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada"
+            )  
+
+        turno_info = []
+        
+        for turno_db in persona_db.turnos:
+            turno=models.TurnoInfoDni(
+                id=turno_db.id,
+                fecha=turno_db.fecha,
+                hora=turno_db.hora,
+                estado=turno_db.estado,
+            )
+            turno_info.append(turno)
+
+        datos_persona=models.DatosPersona.model_validate(persona_db)
+
+        lista_turnos=models.PersonaConTurnos(
+            persona=datos_persona,
+            turnos=turno_info
+        )
+
+        return [lista_turnos]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al buscar persona: {str(e)}")
     
