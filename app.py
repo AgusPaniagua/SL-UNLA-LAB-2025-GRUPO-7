@@ -44,19 +44,6 @@ def leer_turno(turno_id: int):
             status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
     return turno
 
-# @app.get("/reportes/turnos-por-fecha", response_model=list[models.PersonaConTurnos])#TurnoConPersonaPorFecha
-# def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
-    
-    # turnos = (
-    #     db.query(Turnos)
-    #     .filter(Turnos.fecha == fecha)
-    #     .options(joinedload(Turnos.persona))  
-    #     .all()
-    # )
-    # if not turnos:
-    #    raise HTTPException(status_code=404, detail="No hay turnos para la fecha especificada")
-    # return turnos
-
 @app.get("/reportes/turnos-por-fecha", response_model=list[models.PersonaConTurnos])
 def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
     try:
@@ -69,50 +56,6 @@ def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD"))
             )
 
         return resultado
-        # # Traemos todos los turnos con la persona relacionada para la fecha dada
-        # turnos_db = (
-        #     db.query(Turnos)
-        #     .options(joinedload(Turnos.persona))
-        #     .filter(Turnos.fecha == fecha)
-        #     .all()
-        # )
-
-        # if not turnos_db:
-        #     raise HTTPException(
-        #         status_code=status.HTTP_404_NOT_FOUND,
-        #         detail=f"No se encontraron turnos para la fecha {fecha}"
-        #     )
-
-        # # Agrupamos los turnos por persona
-        # personas_dict = {}
-
-        # for turno_db in turnos_db:
-        #     persona_id = turno_db.persona.id
-
-        #     # Si la persona aún no fue agregada, la inicializamos
-        #     if persona_id not in personas_dict:
-        #         personas_dict[persona_id] = {
-        #             "persona": models.DatosPersona.model_validate(turno_db.persona),
-        #             "turnos": []
-        #         }
-
-        #     # Creamos el objeto TurnoInfoDni para este turno
-        #     turno_info = models.TurnoInfoDni(
-        #         id=turno_db.id,
-        #         fecha=turno_db.fecha,
-        #         hora=turno_db.hora,
-        #         estado=turno_db.estado
-        #     )
-
-        #     personas_dict[persona_id]["turnos"].append(turno_info)
-
-        # # Convertimos el diccionario en lista para devolverlo
-        # resultado = [
-        #     models.PersonaConTurnos(**datos)
-        #     for datos in personas_dict.values()
-        # ]
-
-        # return resultado
 
     except Exception as e:
         raise HTTPException(
