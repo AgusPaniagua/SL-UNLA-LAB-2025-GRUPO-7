@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from datetime import date, datetime 
 from dateutil.relativedelta import relativedelta
 from turnosdisponibles import calcular_turnos_disponibles
+import utils
 from config import HORARIOS_DISPONIBLES, ESTADOS_DISPONIBLES
 ESTADOS_VALIDOS = ESTADOS_DISPONIBLES
 print("Verificamos desde var_entornos Horarios disponibles:", HORARIOS_DISPONIBLES)
@@ -57,41 +58,58 @@ def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD"))
 
 @app.get("/reportes/turnos-cancelados-por-mes", response_model=models.TurnosCanceladosPorMes)
 def turnos_cancelados_ultimo_mes():
-    hoy = datetime.today()
-    ultimo_mes = hoy - relativedelta(months=1)
-    mes = ultimo_mes.month
-    anio = ultimo_mes.year
+    try:
+        resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db)
 
-    turnos_cancelados = (
-        db.query(Turnos)
-        .filter(Turnos.estado == "cancelado")
-        .filter(extract('month', Turnos.fecha) == mes)
-        .filter(extract('year', Turnos.fecha) == anio)
-        .all()
-    )
+        if not resultado:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos cancelados para ninguna persona"
+            )
 
-    lista_turnos = [
-        models.TurnoCanceladoInfo(
-            id=t.id,
-            persona_id=t.persona_id,
-            fecha=t.fecha,
-            hora=t.hora,
-            estado=t.estado
+        return resultado
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al obtener turnos cancelados por persona: {str(e)}"
         )
-        for t in turnos_cancelados
-    ]
 
-    meses = [
-        "enero", "febrero", "marzo", "abril", "mayo", "junio",
-        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-    ]
+    # hoy = datetime.today()
+    # ultimo_mes = hoy - relativedelta(months=1)
+    # mes = ultimo_mes.month
+    # anio = ultimo_mes.year
 
-    return models.TurnosCanceladosPorMes(
-        anio=anio,
-        mes=meses[mes - 1],
-        cantidad=len(lista_turnos),
-        turnos=lista_turnos
-    )
+    # turnos_cancelados = (
+    #     db.query(Turnos)
+    #     .filter(Turnos.estado == "cancelado")
+    #     .filter(extract('month', Turnos.fecha) == mes)
+    #     .filter(extract('year', Turnos.fecha) == anio)
+    #     .all()
+    # )
+
+    # lista_turnos = [
+    #     models.TurnoCanceladoInfo(
+    #         id=t.id,
+    #         persona_id=t.persona_id,
+    #         fecha=t.fecha,
+    #         hora=t.hora,
+    #         estado=t.estado
+    #     )
+    #     for t in turnos_cancelados
+    # ]
+
+    # meses = [
+    #     "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    #     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+    # ]
+
+    # return models.TurnosCanceladosPorMes(
+    #     anio=anio,
+    #     mes=meses[mes - 1],
+    #     cantidad=len(lista_turnos),
+    #     turnos=lista_turnos
+    # )
 
 @app.patch("/turnos/{turno_id}", response_model=models.models_Turnos)
 def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):

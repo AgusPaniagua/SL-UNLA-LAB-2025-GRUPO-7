@@ -75,20 +75,6 @@ class TurnoConPersonaPorFecha(BaseModel):
     persona_id: int
     persona: PersonaInfo
 
-class TurnoCanceladoInfo(BaseModel):
-    id: int
-    persona_id: int
-    fecha: date
-    hora: time
-    estado: str
-
-class TurnosCanceladosPorMes(BaseModel):
-    anio: int
-    mes: str
-    cantidad: int
-    turnos: List[TurnoCanceladoInfo]
-
-
 #Turno para respuesta PUT /turnos/{id}/cancelar 
 class TurnoSalida(BaseModel):
     id: int
@@ -143,8 +129,20 @@ class TurnoInfoDni(BaseModel):
     hora: time
     estado: str
 
-    
-
 class PersonaConTurnos(BaseModel):
     persona: DatosPersona # La información de la persona una sola vez
     turnos: List[TurnoInfoDni] # Un array con todos los turnos
+
+class TurnoCanceladoInfo(BaseModel):
+    id: int
+    persona_id: int
+    fecha: date
+    hora: time
+    estado: str
+
+class TurnosCanceladosPorMes(BaseModel):
+    anio: int
+    mes: str
+    cantidad: int
+    turnos: List[PersonaConTurnos] #List[TurnoCanceladoInfo]
+
