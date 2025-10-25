@@ -44,29 +44,94 @@ def leer_turno(turno_id: int):
             status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado")
     return turno
 
-@app.get("/reportes/turnos-por-fecha", response_model=list[models.TurnoConPersonaPorFecha])
-def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
-    turnos = (
-        db.query(Turnos)
-        .filter(Turnos.fecha == fecha)
-        .options(joinedload(Turnos.persona))  
-        .all()
-    )
-    #if not turnos:
+# @app.get("/reportes/turnos-por-fecha", response_model=list[models.PersonaConTurnos])#TurnoConPersonaPorFecha
+# def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
+    
+    # turnos = (
+    #     db.query(Turnos)
+    #     .filter(Turnos.fecha == fecha)
+    #     .options(joinedload(Turnos.persona))  
+    #     .all()
+    # )
+    # if not turnos:
     #    raise HTTPException(status_code=404, detail="No hay turnos para la fecha especificada")
-    return turnos
+    # return turnos
 
-@app.get("/reportes/turnos-cancelados-por-mes", response_model=models.TurnosCanceladosPorMes)
-def turnos_cancelados_ultimo_mes():
+@app.get("/reportes/turnos-por-fecha", response_model=list[models.PersonaConTurnos])
+def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
     try:
-        resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db)
+        resultado = utils.obtener_turnos_por_fecha_service(db, fecha)
 
         if not resultado:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No se encontraron turnos cancelados para ninguna persona"
+                detail=f"No se encontraron turnos para la fecha {fecha}"
             )
 
+        return resultado
+        # # Traemos todos los turnos con la persona relacionada para la fecha dada
+        # turnos_db = (
+        #     db.query(Turnos)
+        #     .options(joinedload(Turnos.persona))
+        #     .filter(Turnos.fecha == fecha)
+        #     .all()
+        # )
+
+        # if not turnos_db:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_404_NOT_FOUND,
+        #         detail=f"No se encontraron turnos para la fecha {fecha}"
+        #     )
+
+        # # Agrupamos los turnos por persona
+        # personas_dict = {}
+
+        # for turno_db in turnos_db:
+        #     persona_id = turno_db.persona.id
+
+        #     # Si la persona aún no fue agregada, la inicializamos
+        #     if persona_id not in personas_dict:
+        #         personas_dict[persona_id] = {
+        #             "persona": models.DatosPersona.model_validate(turno_db.persona),
+        #             "turnos": []
+        #         }
+
+        #     # Creamos el objeto TurnoInfoDni para este turno
+        #     turno_info = models.TurnoInfoDni(
+        #         id=turno_db.id,
+        #         fecha=turno_db.fecha,
+        #         hora=turno_db.hora,
+        #         estado=turno_db.estado
+        #     )
+
+        #     personas_dict[persona_id]["turnos"].append(turno_info)
+
+        # # Convertimos el diccionario en lista para devolverlo
+        # resultado = [
+        #     models.PersonaConTurnos(**datos)
+        #     for datos in personas_dict.values()
+        # ]
+
+        # return resultado
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener turnos por fecha: {str(e)}"
+        )
+
+
+@app.get("/reportes/turnos-cancelados-por-mes", response_model=models.TurnosCanceladosPorMes)
+def turnos_cancelados_ultimo_mes(mes: int = Query(None, ge=1, le=12, description="Número de mes (1-12)"),
+    anio: int = Query(None, description="Año, por ejemplo 2025")):
+    try: 
+        if not mes:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El parámetro 'mes' es obligatorio. Debe indicar un número de 1 a 12."
+            )
+        resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
+        
         return resultado
 
     except Exception as e:
@@ -74,43 +139,7 @@ def turnos_cancelados_ultimo_mes():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener turnos cancelados por persona: {str(e)}"
         )
-
-    # hoy = datetime.today()
-    # ultimo_mes = hoy - relativedelta(months=1)
-    # mes = ultimo_mes.month
-    # anio = ultimo_mes.year
-
-    # turnos_cancelados = (
-    #     db.query(Turnos)
-    #     .filter(Turnos.estado == "cancelado")
-    #     .filter(extract('month', Turnos.fecha) == mes)
-    #     .filter(extract('year', Turnos.fecha) == anio)
-    #     .all()
-    # )
-
-    # lista_turnos = [
-    #     models.TurnoCanceladoInfo(
-    #         id=t.id,
-    #         persona_id=t.persona_id,
-    #         fecha=t.fecha,
-    #         hora=t.hora,
-    #         estado=t.estado
-    #     )
-    #     for t in turnos_cancelados
-    # ]
-
-    # meses = [
-    #     "enero", "febrero", "marzo", "abril", "mayo", "junio",
-    #     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-    # ]
-
-    # return models.TurnosCanceladosPorMes(
-    #     anio=anio,
-    #     mes=meses[mes - 1],
-    #     cantidad=len(lista_turnos),
-    #     turnos=lista_turnos
-    # )
-
+    
 @app.patch("/turnos/{turno_id}", response_model=models.models_Turnos)
 def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()
@@ -156,7 +185,6 @@ def actualizar_turno_put(turno_id: int, turno_actualizado: models.models_Turnos)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Turno no encontrado"
         )
-    #Regla de negocio la cual indica que no se puede modificar un turno asistido o cancelado
     if turno.estado in ["asistido", "cancelado"]:
         raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -299,7 +327,6 @@ def eliminar_turno(turno_id: int):
     db.commit()
     return
 
-
 @app.get("/turnos-disponibles")
 def turnos_disponibles(fecha: date = Query(..., description="YYYY-MM-DD")):
     horarios = calcular_turnos_disponibles(db, fecha)
@@ -308,17 +335,11 @@ def turnos_disponibles(fecha: date = Query(..., description="YYYY-MM-DD")):
         "horarios_disponibles": horarios,
     }
 
-# Funcion para validar email
-
-
 def validar_email(email: str):
     patron = r'^[\w\.-]+@[\w\.-]+\.\w+$'
     if not re.match(patron, email):
         raise ValueError("Email inválido")
     return True
-
-# Funcion para validar fecha de nacimiento
-
 
 def validar_fecha_nacimiento(año, mes, dia):
     año_actual = date.today().year
@@ -330,16 +351,11 @@ def validar_fecha_nacimiento(año, mes, dia):
         raise ValueError("Fecha inválida")
     return fecha
 
-
-# Endpoints para personas
-
 # Endpoin para traer a todas las personas
 @app.get("/personas/", response_model=list[models.DatosPersona])
 def traer_personas():
     personas = db.query(Persona).all()
     return personas
-
-# Endpoin para traer a una persona por su id
 
 @app.get("/personas/{persona_id}", response_model=models.DatosPersona)
 def traer_personas(persona_id: int):
@@ -349,10 +365,6 @@ def traer_personas(persona_id: int):
             status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")
     return persona
     
-
-# Endpoin para modificar una persona
-
-
 @app.put("/personas/{persona_id}", response_model=models.DatosPersona)
 def modificar_persona(persona_id: int, persona_modificada: models.PersonaBase):
     persona = db.query(Persona).filter(Persona.id == persona_id).first()
@@ -391,7 +403,6 @@ def modificar_persona(persona_id: int, persona_modificada: models.PersonaBase):
     return persona
 
 # Endpoin para crear una persona
-
 
 @app.post("/personas/", response_model=models.PersonaBase, status_code=status.HTTP_201_CREATED)
 def crear_persona(persona: models.PersonaCreate):

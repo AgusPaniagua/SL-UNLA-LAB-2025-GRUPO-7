@@ -145,4 +145,3 @@ class TurnosCanceladosPorMes(BaseModel):
     mes: str
     cantidad: int
     turnos: List[PersonaConTurnos] #List[TurnoCanceladoInfo]
-
