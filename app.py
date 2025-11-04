@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Response, status, Query
+from fastapi.responses import StreamingResponse  
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import extract, func
 from database import SessionLocal, Turnos, Persona
@@ -11,7 +12,7 @@ from pydantic import BaseModel
 from datetime import date, datetime 
 from dateutil.relativedelta import relativedelta
 from turnosdisponibles import calcular_turnos_disponibles
-import utils
+import utils, utilreportes
 from config import HORARIOS_DISPONIBLES, ESTADOS_DISPONIBLES
 ESTADOS_VALIDOS = ESTADOS_DISPONIBLES
 print("Verificamos desde var_entornos Horarios disponibles:", HORARIOS_DISPONIBLES)
@@ -65,23 +66,44 @@ def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD"))
 
 
 @app.get("/reportes/turnos-cancelados-por-mes", response_model=models.TurnosCanceladosPorMes)
-def turnos_cancelados_ultimo_mes(mes: int = Query(None, ge=1, le=12, description="Número de mes (1-12)"),
-    anio: int = Query(None, description="Año, por ejemplo 2025")):
+def turnos_cancelados_mes_actual():
+#def turnos_cancelados_ultimo_mes(mes: int = Query(None, ge=1, le=12, description="Número de mes (1-12)"),
+    #anio: int = Query(None, description="Año, por ejemplo 2025")):
     try: 
-        if not mes:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="El parámetro 'mes' es obligatorio. Debe indicar un número de 1 a 12."
-            )
-        resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
-        
+         # Obtener mes y año actuales
+        hoy = datetime.now()
+        ultimo_mes = hoy - relativedelta(months=1)
+        mes = ultimo_mes.month
+        #mes = hoy.month
+        anio = hoy.year
+        resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)        
         return resultado
-
+        # if not mes:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_404_NOT_FOUND,
+        #         detail="El parámetro 'mes' es obligatorio. Debe indicar un número de 1 a 12."
+        #     )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener turnos cancelados por persona: {str(e)}"
         )
+    
+@app.get("/reportes/turnos-cancelados-pdf")
+def reportes_turnos_cancelados_pdf():
+    hoy = datetime.now()
+    ultimo_mes = hoy - relativedelta(months=1)
+    mes = ultimo_mes.month
+    ##mes = hoy.month
+    anio = hoy.year
+    resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
+
+    pdf_bytes = utilreportes.generar_pdf_turnos_cancelados(resultado)
+    return StreamingResponse(
+        pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=turnos_cancelados.pdf"}
+    )
     
 @app.patch("/turnos/{turno_id}", response_model=models.models_Turnos)
 def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
@@ -96,24 +118,9 @@ def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=f"No se puede modificar un turno con estado '{turno.estado}'."
     )
-    if turno_actualizado.fecha is not None:
-        turno.fecha = turno_actualizado.fecha
-        hubo_Cambios = True
-    if turno_actualizado.hora is not None:
-        turno.hora = turno_actualizado.hora
-        hubo_Cambios = True
-    if turno_actualizado.estado is not None:
-        if turno_actualizado.estado in ESTADOS_VALIDOS:
-            turno.estado = turno_actualizado.estado
-            hubo_Cambios = True
-        else:
-            if turno_actualizado.estado is not None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail= f"Estado inválido. Debe ser: {', '.join(ESTADOS_VALIDOS)}.")
-    if turno_actualizado.persona_id is not None:
-        turno.persona_id = turno_actualizado.persona_id
-        hubo_Cambios = True
-
+    # Actualiza solo los campos que envió el cliente, con validación de estado
+    hubo_Cambios = utils.actualizar_campos_dinamicos(turno, turno_actualizado, ESTADOS_VALIDOS)
+    
     if hubo_Cambios == False:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 

@@ -1,4 +1,3 @@
-
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -7,7 +6,11 @@ from datetime import date
 from typing import List
 from collections import defaultdict
 from database import Persona,Turnos  
-from config import MESES_DISPONIBLES, ESTADOS_DISPONIBLES   
+from config import MESES_DISPONIBLES, ESTADOS_DISPONIBLES 
+from fastapi import HTTPException, status  
+
+
+
 
 def obtener_turnos_cancelados_por_mes_por_persona(db: Session, mesQ: int = None, anioQ: int = None):
     """
@@ -73,10 +76,6 @@ def obtener_turnos_cancelados_por_mes_por_persona(db: Session, mesQ: int = None,
         )
 
     meses = MESES_DISPONIBLES 
-    # [
-    #     "enero", "febrero", "marzo", "abril", "mayo", "junio",
-    #     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-    # ]
 
     return {
         "anio": anio,
@@ -120,3 +119,43 @@ def obtener_turnos_por_fecha_service(db: Session, fecha: date) -> List[models.Pe
     resultado = [models.PersonaConTurnos(**datos) for datos in personas_dict.values()]
 
     return resultado
+
+#from fastapi import HTTPException, status
+
+def actualizar_campos_dinamicos(obj_db, obj_update, estados_validos=None):
+    """
+    Actualiza dinámicamente los campos de un objeto de base de datos
+    usando un Pydantic model obj_update.  
+    Si se envía un campo 'estado', valida que esté en estados_validos.
+    Devuelve True si hubo cambios, False si no.
+    """
+    hubo_cambios = False
+    for campo, valor in obj_update.dict(exclude_unset=True).items():
+        if campo == "estado" and estados_validos is not None:
+            if valor not in estados_validos:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Estado inválido. Debe ser: {', '.join(estados_validos)}."
+                )
+        setattr(obj_db, campo, valor)
+        hubo_cambios = True
+
+    return hubo_cambios
+    # if turno_actualizado.fecha is not None:
+    #     turno.fecha = turno_actualizado.fecha
+    #     hubo_Cambios = True
+    # if turno_actualizado.hora is not None:
+    #     turno.hora = turno_actualizado.hora
+    #     hubo_Cambios = True
+    # if turno_actualizado.estado is not None:
+    #     if turno_actualizado.estado in ESTADOS_VALIDOS:
+    #         turno.estado = turno_actualizado.estado
+    #         hubo_Cambios = True
+    #     else:
+    #         if turno_actualizado.estado is not None:
+    #             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+    #                                 detail= f"Estado inválido. Debe ser: {', '.join(ESTADOS_VALIDOS)}.")
+    # if turno_actualizado.persona_id is not None:
+    #     turno.persona_id = turno_actualizado.persona_id
+    #     hubo_Cambios = True
+
