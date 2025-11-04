@@ -72,29 +72,20 @@ def turnos_cancelados_mes_actual():
     try: 
          # Obtener mes y año actuales
         hoy = datetime.now()
-        ultimo_mes = hoy - relativedelta(months=1)
-        mes = ultimo_mes.month
-        #mes = hoy.month
+        mes = hoy.month
         anio = hoy.year
         resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)        
         return resultado
-        # if not mes:
-        #     raise HTTPException(
-        #         status_code=status.HTTP_404_NOT_FOUND,
-        #         detail="El parámetro 'mes' es obligatorio. Debe indicar un número de 1 a 12."
-        #     )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener turnos cancelados por persona: {str(e)}"
         )
     
-@app.get("/reportes/turnos-cancelados-pdf")
+@app.get("/reportes/turnos-cancelados-mes-pdf")
 def reportes_turnos_cancelados_pdf():
     hoy = datetime.now()
-    ultimo_mes = hoy - relativedelta(months=1)
-    mes = ultimo_mes.month
-    ##mes = hoy.month
+    mes = hoy.month
     anio = hoy.year
     resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
 
@@ -148,7 +139,8 @@ def actualizar_turno_put(turno_id: int, turno_actualizado: models.models_Turnos)
     turno.fecha = turno_actualizado.fecha
     turno.hora = turno_actualizado.hora
     turno.estado = turno_actualizado.estado
-    turno.persona_id = turno_actualizado.persona_id
+    turno.persona_id = turno_actualizado.persona_id if turno_actualizado.persona_id > 0 else turno.persona_id
+    #turno.persona_id = turno_actualizado.persona_id
 
     db.commit()
     db.refresh(turno)

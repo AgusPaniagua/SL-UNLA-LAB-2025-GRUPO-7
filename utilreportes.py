@@ -54,3 +54,6 @@ def generar_pdf_turnos_cancelados(data: dict):
     PDF.dumps(pdf_bytes, doc)
     pdf_bytes.seek(0)
     return pdf_bytes
+
+        # ultimo_mes = hoy - relativedelta(months=1)
+        # mes = ultimo_mes.month
