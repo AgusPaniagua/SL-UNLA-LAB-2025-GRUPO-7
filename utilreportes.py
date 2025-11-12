@@ -2,8 +2,12 @@ import io
 from borb.pdf import Document, Page, PDF
 from borb.pdf.canvas.layout.page_layout.multi_column_layout import SingleColumnLayout
 from borb.pdf.canvas.layout.table.table import Table, TableCell
+from borb.pdf.canvas.layout.table.fixed_column_width_table import FixedColumnWidthTable
 from borb.pdf.canvas.layout.text.paragraph import Paragraph
+from borb.pdf.canvas.layout.horizontal_rule import HorizontalRule
 from borb.pdf.canvas.color.color import HexColor
+from decimal import Decimal
+import utils
 
 def generar_pdf_turnos_cancelados(data: dict):
     """
@@ -57,3 +61,54 @@ def generar_pdf_turnos_cancelados(data: dict):
 
         # ultimo_mes = hoy - relativedelta(months=1)
         # mes = ultimo_mes.month
+
+def generar_pdf_con_estado_de_personas(data:list):
+    documento= Document()
+    pagina=Page()
+    documento.add_page(pagina)
+    diseño=SingleColumnLayout(pagina)
+
+    #Titulo
+    utils.agregar_titulo(diseño,"Reporte de estado de personas")
+    
+    encabezados = ["ID","Nombre","Email","Dni","Telefono","Edad","Habilitado"]
+    numero_de_columnas=len(encabezados)
+    tamaño_de_columnas=[
+        Decimal("0.08"),
+        Decimal("0.20"),
+        Decimal("0.45"),
+        Decimal("0.25"),
+        Decimal("0.25"),
+        Decimal("0.15"),
+        Decimal("0.25"),
+    ]
+    tabla = FixedColumnWidthTable(number_of_rows=len(data)+1,number_of_columns=numero_de_columnas,column_widths=tamaño_de_columnas)
+    #Agregamos a las personas
+    
+    for encabezado in encabezados:
+        tabla.add(
+            TableCell(
+                Paragraph(encabezado,font="Helvetica-Bold",font_color=HexColor("003366")),
+            )
+        )
+    for persona in data:
+        datos_persona = [
+            persona.id,
+            persona.nombre,
+            persona.email,
+            persona.dni,
+            persona.telefono,
+            persona.edad,
+            persona.habilitado_para_turno,
+        ]
+        for datos in datos_persona:
+            tabla.add(TableCell(Paragraph(str(datos))))
+        
+    
+    tabla.set_padding_on_all_cells(5,5,5,5)
+    tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
+    diseño.add(tabla)
+    buffer = io.BytesIO()
+    PDF.dumps(buffer,documento)
+    buffer.seek(0)
+    return buffer

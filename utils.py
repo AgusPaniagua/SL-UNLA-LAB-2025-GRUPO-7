@@ -7,7 +7,10 @@ from typing import List
 from collections import defaultdict
 from database import Persona,Turnos  
 from config import MESES_DISPONIBLES, ESTADOS_DISPONIBLES 
-from fastapi import HTTPException, status  
+from fastapi import HTTPException, status
+from borb.pdf.canvas.layout.text.paragraph import Paragraph
+from borb.pdf.canvas.layout.horizontal_rule import HorizontalRule
+from borb.pdf.canvas.color.color import HexColor
 
 
 
@@ -159,3 +162,29 @@ def actualizar_campos_dinamicos(obj_db, obj_update, estados_validos=None):
     #     turno.persona_id = turno_actualizado.persona_id
     #     hubo_Cambios = True
 
+
+def traer_personas_por_estado_de_turno(db:Session,habilitado_para_turno: bool):
+    try:
+        personas=db.query(Persona).filter(Persona.habilitado_para_turno==habilitado_para_turno).all()
+        return personas
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+def agregar_titulo(layout, texto):
+    layout.add(
+        Paragraph(
+            texto,
+            font_size=20,
+            font_color=HexColor("003366"),
+            font="Helvetica-Bold",
+            margin_bottom=2,
+            
+        )
+    )
+    layout.add(
+        HorizontalRule(
+            line_color=HexColor("#000000"),
+            margin_top=5,
+            margin_bottom=10,
+        )
+    )

@@ -507,12 +507,25 @@ def obtener_personas_con_turnos_cancelados(
 
 #Endpoint para traer todas las personas mediante el parametro habilitado_para_turno
 @app.get("/reportes/estado-personas/",response_model=list[models.DatosPersona])
-def traer_personas_por_estado_de_turno(habilitado_para_turno: bool):
+def personas_por_estado_de_turno(habilitado_para_turno: bool):
     try:
-        personas=db.query(Persona).filter(Persona.habilitado_para_turno==habilitado_para_turno).all()
-        return personas
+        persona_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
+        return persona_por_estado
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.get("/reportes/estado-personas-pdf/")
+def personas_por_estado_de_turno_pdf(habilitado_para_turno: bool):
+    try:
+        personas_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
+        buffer = utilreportes.generar_pdf_con_estado_de_personas(personas_por_estado)
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=estado_personas.pdf"}
+        )
+    except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 #Endpoint para traer los turnos confirmados en un período de tiempo
 @app.get("/reportes/turnos-confirmados", response_model=models.ReporteTurnosConfirmados)
