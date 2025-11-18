@@ -7,6 +7,7 @@ from borb.pdf.canvas.layout.text.paragraph import Paragraph
 from borb.pdf.canvas.layout.horizontal_rule import HorizontalRule
 from borb.pdf.canvas.color.color import HexColor
 from decimal import Decimal
+import pandas as pd
 import utils
 
 def generar_pdf_turnos_cancelados(data: dict):
@@ -70,9 +71,10 @@ def generar_pdf_con_estado_de_personas(data:list):
 
     #Titulo
     utils.agregar_titulo(diseño,"Reporte de estado de personas")
-    
+    #Agregamos los encabezados para saber el numero de columnas que vamos a usar
     encabezados = ["ID","Nombre","Email","Dni","Telefono","Edad","Habilitado"]
     numero_de_columnas=len(encabezados)
+    #Aca se define el tamaño de cada columa
     tamaño_de_columnas=[
         Decimal("0.08"),
         Decimal("0.20"),
@@ -82,9 +84,10 @@ def generar_pdf_con_estado_de_personas(data:list):
         Decimal("0.15"),
         Decimal("0.25"),
     ]
+    #Se crea la tabla
     tabla = FixedColumnWidthTable(number_of_rows=len(data)+1,number_of_columns=numero_de_columnas,column_widths=tamaño_de_columnas)
-    #Agregamos a las personas
-    
+
+    #Agregamos a las personas y sus datos 
     for encabezado in encabezados:
         tabla.add(
             TableCell(
@@ -104,11 +107,35 @@ def generar_pdf_con_estado_de_personas(data:list):
         for datos in datos_persona:
             tabla.add(TableCell(Paragraph(str(datos))))
         
-    
+    #Separamos un poco y agregamos un poco de color a la tabla
     tabla.set_padding_on_all_cells(5,5,5,5)
     tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
     diseño.add(tabla)
     buffer = io.BytesIO()
     PDF.dumps(buffer,documento)
+    buffer.seek(0)
+    return buffer
+
+def generar_csv_con_estado_de_personas(data:list):
+    personas = []
+    for persona in data:
+        datos_persona={
+            "ID":persona.id,
+            "Nombre":persona.nombre,
+            "Email":persona.email,
+            "Dni":persona.dni,
+            "Telefono":persona.telefono,
+            "Edad":persona.edad,
+            "Habilitado":persona.habilitado_para_turno,
+        }
+        personas.append(datos_persona)
+    
+    df = pd.DataFrame(personas)
+    buffer_encabezado = io.StringIO()
+    buffer_encabezado.write(f"Registro de estado de personas\n")
+    buffer_encabezado .write(f"\n")
+    df.to_csv(buffer_encabezado,index=False,encoding="utf-8")
+    buffer_encabezado.seek(0)
+    buffer = io.BytesIO(buffer_encabezado.getvalue().encode('utf-8'))
     buffer.seek(0)
     return buffer

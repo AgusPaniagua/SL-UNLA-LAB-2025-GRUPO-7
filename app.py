@@ -513,8 +513,8 @@ def personas_por_estado_de_turno(habilitado_para_turno: bool):
         return persona_por_estado
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-@app.get("/reportes/estado-personas-pdf/")
+#Endpoint para descargar un pdf con los reportes del estado de las personas
+@app.get("/reportes/pdf/estado-personas/")
 def personas_por_estado_de_turno_pdf(habilitado_para_turno: bool):
     try:
         personas_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
@@ -523,6 +523,26 @@ def personas_por_estado_de_turno_pdf(habilitado_para_turno: bool):
             buffer,
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=estado_personas.pdf"}
+        )
+    except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+@app.get("/reportes/csv/estado-personas/")
+def personas_por_estado_de_turno_csv(
+    habilitado_para_turno: bool,
+    pagina: int = Query(1, ge=1, description="Numero de paginas a mostrar"),
+    limite: int = Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
+    ):
+    try:
+        personas_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
+        inicio=(pagina-1)*limite
+        fin = inicio + limite
+        resultado_paginado = personas_por_estado[inicio:fin]
+        buffer = utilreportes.generar_csv_con_estado_de_personas(resultado_paginado)
+        return StreamingResponse(
+            buffer,
+            media_type="aplication/csv",
+            headers={"Content-Disposition": "attachment; ffilename=estado_personas.csv"}
         )
     except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

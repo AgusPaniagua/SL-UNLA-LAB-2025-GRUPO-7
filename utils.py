@@ -175,7 +175,7 @@ def agregar_titulo(layout, texto):
         Paragraph(
             texto,
             font_size=20,
-            font_color=HexColor("003366"),
+            font_color=HexColor("#000000"),
             font="Helvetica-Bold",
             margin_bottom=2,
             
