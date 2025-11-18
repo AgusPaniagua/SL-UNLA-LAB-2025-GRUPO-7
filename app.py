@@ -277,22 +277,6 @@ def turnos_disponibles(fecha: date = Query(..., description="YYYY-MM-DD")):
         "horarios_disponibles": horarios,
     }
 
-def validar_email(email: str):
-    patron = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-    if not re.match(patron, email):
-        raise ValueError("Email inválido")
-    return True
-
-def validar_fecha_nacimiento(año, mes, dia):
-    año_actual = date.today().year
-    if año > año_actual:
-        raise ValueError("El año no puede ser mayor al actual")
-    try:
-        fecha = date(año, mes, dia)
-    except ValueError:
-        raise ValueError("Fecha inválida")
-    return fecha
-
 # Endpoin para traer a todas las personas
 @app.get("/personas/", response_model=list[models.DatosPersona])
 def traer_personas():

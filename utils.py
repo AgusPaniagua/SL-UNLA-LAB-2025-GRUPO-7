@@ -236,3 +236,19 @@ def agregar_tabla(numero_filas:int, numero_columnas:int, tamaño_columnas:list):
     tabla.set_padding_on_all_cells(5, 5, 5, 5)
     tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
     return tabla
+
+def validar_email(email: str):
+    patron = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if not re.match(patron, email):
+        raise ValueError("Email inválido")
+    return True
+
+def validar_fecha_nacimiento(año, mes, dia):
+    año_actual = date.today().year
+    if año > año_actual:
+        raise ValueError("El año no puede ser mayor al actual")
+    try:
+        fecha = date(año, mes, dia)
+    except ValueError:
+        raise ValueError("Fecha inválida")
+    return fecha
