@@ -515,10 +515,17 @@ def personas_por_estado_de_turno(habilitado_para_turno: bool):
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 #Endpoint para descargar un pdf con los reportes del estado de las personas
 @app.get("/reportes/pdf/estado-personas/")
-def personas_por_estado_de_turno_pdf(habilitado_para_turno: bool):
+def personas_por_estado_de_turno_pdf(
+    habilitado_para_turno: bool,
+    pagina: int = Query(1, ge=1, description="Numero de paginas a mostrar"),
+    limite: int = Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
+    ):
     try:
         personas_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
-        buffer = utilreportes.generar_pdf_con_estado_de_personas(personas_por_estado)
+        inicio=(pagina-1)*limite
+        fin = inicio + limite
+        resultado_paginado = personas_por_estado[inicio:fin]
+        buffer = utilreportes.generar_pdf_con_estado_de_personas(resultado_paginado)
         return StreamingResponse(
             buffer,
             media_type="application/pdf",
