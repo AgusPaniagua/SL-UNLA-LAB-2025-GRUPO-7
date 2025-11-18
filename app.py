@@ -413,42 +413,34 @@ def eliminar_persona(persona_id: int):
 
 #Endopoint para traer todos los turnos de una persona mediante el dni 
 @app.get("/reportes/turnos-por-personas/{dni}",response_model=list[models.PersonaConTurnos])
-def traer_turnos_por_dni_de_persona(dni: int):
+def turnos_por_dni_de_persona(dni: int):
     try:
-        persona_db = (
-            db.query(Persona)
-            .filter(Persona.dni == dni)
-            .options(joinedload(Persona.turnos))
-            .first()
-        )
+        turnos_persona=utils.traer_turnos_por_dni_de_persona(db,dni)
 
-        if persona_db is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada"
-            )  
-
-        turno_info = []
-        
-        for turno_db in persona_db.turnos:
-            turno=models.TurnoInfoDni(
-                id=turno_db.id,
-                fecha=turno_db.fecha,
-                hora=turno_db.hora,
-                estado=turno_db.estado,
-            )
-            turno_info.append(turno)
-
-        datos_persona=models.DatosPersona.model_validate(persona_db)
-
-        lista_turnos=models.PersonaConTurnos(
-            persona=datos_persona,
-            turnos=turno_info
-        )
-
-        return [lista_turnos]
+        return turnos_persona
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al buscar persona: {str(e)}")
     
+@app.get("/reporte/pdf/turnos-por-persona/{dni}")
+def turnos_por_dni_de_persona_pdf(
+    dni:int,
+    pagina: int=Query(1, ge=1, description="NUmero de paginas a mostrar"),
+    limite: int=Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
+    ):
+    try:
+        turnos_persona=utils.traer_turnos_por_dni_de_persona(db,dni)
+        inicio=(pagina-1)*limite
+        fin=inicio+limite
+        resultado_paginado=turnos_persona[inicio:fin]
+        buffer=utilreportes.generar_pdf_con_turnos_por_dni(resultado_paginado)
+        return StreamingResponse(buffer,
+                                  media_type="application/pdf",
+                                  headers={"Content-Disposition": "attachment;"
+                                  "filename=turnos_por_persona.pdf"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
 #Endopoint para traer a las personas que tienen minimo 5 turnos cancelados, y el detalle de cada turno
 @app.get(
     "/reportes/turnos-cancelados",

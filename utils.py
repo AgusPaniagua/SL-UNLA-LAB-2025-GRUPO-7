@@ -11,6 +11,8 @@ from fastapi import HTTPException, status
 from borb.pdf.canvas.layout.text.paragraph import Paragraph
 from borb.pdf.canvas.layout.horizontal_rule import HorizontalRule
 from borb.pdf.canvas.color.color import HexColor
+from borb.pdf.canvas.layout.table.table import Table, TableCell
+from borb.pdf.canvas.layout.table.fixed_column_width_table import FixedColumnWidthTable
 
 
 
@@ -169,6 +171,42 @@ def traer_personas_por_estado_de_turno(db:Session,habilitado_para_turno: bool):
         return personas
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+def traer_turnos_por_dni_de_persona(db:Session,dni: int):
+    try:
+        persona_db = (
+            db.query(Persona)
+            .filter(Persona.dni == dni)
+            .options(joinedload(Persona.turnos))
+            .first()
+        )
+
+        if persona_db is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada"
+            )  
+
+        turno_info = []
+        
+        for turno_db in persona_db.turnos:
+            turno=models.TurnoInfoDni(
+                id=turno_db.id,
+                fecha=turno_db.fecha,
+                hora=turno_db.hora,
+                estado=turno_db.estado,
+            )
+            turno_info.append(turno)
+
+        datos_persona=models.DatosPersona.model_validate(persona_db)
+
+        lista_turnos=models.PersonaConTurnos(
+            persona=datos_persona,
+            turnos=turno_info
+        )
+
+        return [lista_turnos]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al buscar persona: {str(e)}")
 
 def agregar_titulo(layout, texto):
     layout.add(
@@ -188,3 +226,13 @@ def agregar_titulo(layout, texto):
             margin_bottom=10,
         )
     )
+
+def agregar_tabla(numero_filas:int, numero_columnas:int, tamaño_columnas:list):
+    
+    tabla = FixedColumnWidthTable(number_of_rows=numero_filas +1,
+                                  number_of_columns=numero_columnas,
+                                  column_widths=tamaño_columnas)
+    
+    tabla.set_padding_on_all_cells(5, 5, 5, 5)
+    tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
+    return tabla
