@@ -221,3 +221,72 @@ def generar_pdf_con_turnos_por_dni(data:list):
     PDF.dumps(buffer,documento)
     buffer.seek(0)
     return buffer
+
+
+def generar_pdf_personas_con_5_cancelados(data: list, minimo: int):
+
+    documento = Document()
+    pagina = Page()
+    documento.add_page(pagina)
+    diseño = SingleColumnLayout(pagina)
+
+    # Titulo
+    diseño.add(Paragraph("Materia: Seminario Python", font_size=22, font_color=HexColor("003366"), font="Helvetica-Bold"))
+    diseño.add(Paragraph("Alumno: Amalfitano Juan Ignacio", font_size=20, font_color=HexColor("003366"), font="Helvetica-Bold"))
+    diseño.add(Paragraph("DNI: 45.397.013", font_size=15, font_color=HexColor("003366"), font="Helvetica-Bold"))
+    diseño.add(Paragraph(" "))
+    diseño.add(Paragraph(f"Reporte: Personas con mínimo {minimo} turnos cancelados", font_size=18))
+    diseño.add(Paragraph(f"Cantidad de personas encontradas: {len(data)}", font_size=12))
+    diseño.add(Paragraph(" "))
+
+    for item in data:
+        p = item.persona
+
+        # Los datos de la persona
+        diseño.add(Paragraph(f"Persona: {p.nombre} (ID {p.id})", font="Helvetica-Bold", font_size=14, font_color=HexColor("0D1366")))
+        diseño.add(Paragraph(f"DNI: {p.dni} - Email: {p.email} - Teléfono: {p.telefono}", font_size=12))
+        diseño.add(Paragraph(f"Total de turnos cancelados: {item.cantidad_cancelados}", font_size=12))
+        diseño.add(Paragraph(" "))
+
+        # La tabla de los turnos
+        encabezados = ["ID", "Fecha", "Hora", "Estado"]
+        columnas = len(encabezados)
+
+        tabla = FixedColumnWidthTable(
+            number_of_rows=len(item.turnos) + 1,
+            number_of_columns=columnas,
+            column_widths=[
+                Decimal("0.25"),
+                Decimal("0.25"),
+                Decimal("0.25"),
+                Decimal("0.25"),
+            ]
+        )
+
+        # Encabezados
+        for e in encabezados:
+            tabla.add(TableCell(Paragraph(e, font="Helvetica-Bold", font_color=HexColor("003366"))))
+
+        # Turnos cancelados
+        for t in item.turnos:
+            fila = [
+                t.id,
+                str(t.fecha),
+                str(t.hora),
+                t.estado
+            ]
+            for campo in fila:
+                tabla.add(TableCell(Paragraph(str(campo))))
+
+        # Aca estan todos los estilos
+        tabla.set_padding_on_all_cells(5, 5, 5, 5)
+        tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
+        diseño.add(tabla)
+
+        diseño.add(Paragraph(" "))
+
+    # Y por ultimo se exporta a PDF
+    buffer = io.BytesIO()
+    PDF.dumps(buffer, documento)
+    buffer.seek(0)
+    return buffer

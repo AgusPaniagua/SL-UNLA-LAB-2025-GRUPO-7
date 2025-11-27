@@ -480,6 +480,28 @@ def obtener_personas_con_turnos_cancelados(
 
     return respuesta
 
+#Endopoint para traer a las personas que tienen minimo 5 turnos cancelados, y el detalle de cada turno EN PDF
+@app.get("/reportes/turnos-cancelados-min-5-pdf/")
+def obtener_personas_con_min_5_turnos_cancelados_pdf(min: int = 5):
+    try:
+        resultados = obtener_personas_con_turnos_cancelados(min)
+
+        buffer = utilreportes.generar_pdf_personas_con_5_cancelados(resultados, min)
+
+        return StreamingResponse(
+    buffer,
+    media_type="application/pdf",
+    headers={
+        "Content-Disposition": f"attachment; filename=turnos_cancelados_min_{min}.pdf"
+    }
+)
+    
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
 
 #Endpoint para traer todas las personas mediante el parametro habilitado_para_turno
 @app.get("/reportes/estado-personas/",response_model=list[models.DatosPersona])

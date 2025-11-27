@@ -50,7 +50,7 @@ db = SessionLocal()
 #Creacion de datos para la base datos por si no tiene ninguna persona cargada
 if db.query(Persona).count() == 0:
     persona1 = Persona(
-        nombre="pesona1",
+        nombre="persona1",
         email="persona1@gmail.com",
         dni=123456789,
         telefono=1122334455,
@@ -59,7 +59,7 @@ if db.query(Persona).count() == 0:
         habilitado_para_turno=True
     )
     persona2 = Persona(
-        nombre="pesona2",
+        nombre="persona2",
         email="persona2@gmail.com",
         dni=234567890,
         telefono=1133445566,
