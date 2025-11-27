@@ -1,12 +1,11 @@
 import re
 from sqlalchemy.orm import Session, joinedload
-from datetime import datetime
+from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 import models
-from datetime import date
 from typing import List
 from collections import defaultdict
-from database import Persona,Turnos  
+from database import Persona, Turnos  
 from config import MESES_DISPONIBLES, ESTADOS_DISPONIBLES 
 from fastapi import HTTPException, status
 from borb.pdf.canvas.layout.text.paragraph import Paragraph
@@ -16,48 +15,27 @@ from borb.pdf.canvas.layout.table.table import Table, TableCell
 from borb.pdf.canvas.layout.table.fixed_column_width_table import FixedColumnWidthTable
 
 
-
-
 def obtener_turnos_cancelados_por_mes_por_persona(db: Session, mesQ: int = None, anioQ: int = None):
-    """
-    Devuelve un diccionario con:
-        - anio: año del último mes
-        - mes: nombre del último mes
-        - cantidad: total de turnos cancelados
-        - turnos: lista de PersonaConTurnos, cada persona con sus turnos cancelados del último mes
-    """
     hoy = datetime.today()
     if mesQ is None and anioQ is None:
-        # Caso 1: nada pasado → último mes completo
         ultimo_mes = hoy - relativedelta(months=1)
         mes_num = ultimo_mes.month
         anio = ultimo_mes.year
     elif mesQ is not None and anioQ is None:
-        # Caso 2: solo mes → usar año actual
         mes_num = mesQ
         anio = hoy.year
     elif mesQ is None and anioQ is not None:
-        # Caso 3: solo año → usar diciembre del año pasado por parámetro
         mes_num = 12
         anio = anioQ
     else:
-        # Caso 4: mes y año → usar exactamente los valores pasados
         mes_num = mesQ
         anio = anioQ
 
-    # Traemos todas las personas con sus turnos
-    personas_db = (
-        db.query(Persona)
-        .options(joinedload(Persona.turnos))
-        .all()
-    )
-
+    personas_db = db.query(Persona).options(joinedload(Persona.turnos)).all()
     resultado = []
 
     for persona in personas_db:
-        # Filtramos solo los turnos cancelados del último mes "cancelado"
         estado_cancelado = ESTADOS_DISPONIBLES[1] if len(ESTADOS_DISPONIBLES) > 2 else "cancelado"
-        print(estado_cancelado)
         turnos_cancelados = [
             models.TurnoInfoDni(
                 id=t.id,
@@ -70,10 +48,9 @@ def obtener_turnos_cancelados_por_mes_por_persona(db: Session, mesQ: int = None,
         ]
 
         if not turnos_cancelados:
-            continue  # ignoramos personas sin turnos cancelados
+            continue
 
         datos_persona = models.DatosPersona.model_validate(persona)
-
         resultado.append(
             models.PersonaConTurnos(
                 persona=datos_persona,
@@ -92,20 +69,11 @@ def obtener_turnos_cancelados_por_mes_por_persona(db: Session, mesQ: int = None,
 
 
 def obtener_turnos_por_fecha_service(db: Session, fecha: date) -> List[models.PersonaConTurnos]:
-    # Traemos todos los turnos con la persona relacionada para la fecha dada
-    turnos_db = (
-        db.query(Turnos)
-        .options(joinedload(Turnos.persona))
-        .filter(Turnos.fecha == fecha)
-        .all()
-    )
-
-    # Agrupamos los turnos por persona
+    turnos_db = db.query(Turnos).options(joinedload(Turnos.persona)).filter(Turnos.fecha == fecha).all()
     personas_dict = {}
 
     for turno_db in turnos_db:
         persona_id = turno_db.persona.id
-
         if persona_id not in personas_dict:
             personas_dict[persona_id] = {
                 "persona": models.DatosPersona.model_validate(turno_db.persona),
@@ -118,23 +86,13 @@ def obtener_turnos_por_fecha_service(db: Session, fecha: date) -> List[models.Pe
             hora=turno_db.hora,
             estado=turno_db.estado
         )
-
         personas_dict[persona_id]["turnos"].append(turno_info)
 
-    # Convertimos el diccionario en lista para devolverlo
     resultado = [models.PersonaConTurnos(**datos) for datos in personas_dict.values()]
-
     return resultado
 
-#from fastapi import HTTPException, status
 
 def actualizar_campos_dinamicos(obj_db, obj_update, estados_validos=None):
-    """
-    Actualiza dinámicamente los campos de un objeto de base de datos
-    usando un Pydantic model obj_update.  
-    Si se envía un campo 'estado', valida que esté en estados_validos.
-    Devuelve True si hubo cambios, False si no.
-    """
     hubo_cambios = False
     for campo, valor in obj_update.dict(exclude_unset=True).items():
         if campo == "estado" and estados_validos is not None:
@@ -145,35 +103,18 @@ def actualizar_campos_dinamicos(obj_db, obj_update, estados_validos=None):
                 )
         setattr(obj_db, campo, valor)
         hubo_cambios = True
-
     return hubo_cambios
-    # if turno_actualizado.fecha is not None:
-    #     turno.fecha = turno_actualizado.fecha
-    #     hubo_Cambios = True
-    # if turno_actualizado.hora is not None:
-    #     turno.hora = turno_actualizado.hora
-    #     hubo_Cambios = True
-    # if turno_actualizado.estado is not None:
-    #     if turno_actualizado.estado in ESTADOS_VALIDOS:
-    #         turno.estado = turno_actualizado.estado
-    #         hubo_Cambios = True
-    #     else:
-    #         if turno_actualizado.estado is not None:
-    #             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-    #                                 detail= f"Estado inválido. Debe ser: {', '.join(ESTADOS_VALIDOS)}.")
-    # if turno_actualizado.persona_id is not None:
-    #     turno.persona_id = turno_actualizado.persona_id
-    #     hubo_Cambios = True
 
 
-def traer_personas_por_estado_de_turno(db:Session,habilitado_para_turno: bool):
+def traer_personas_por_estado_de_turno(db: Session, habilitado_para_turno: bool):
     try:
-        personas=db.query(Persona).filter(Persona.habilitado_para_turno==habilitado_para_turno).all()
+        personas = db.query(Persona).filter(Persona.habilitado_para_turno == habilitado_para_turno).all()
         return personas
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
     
-def traer_turnos_por_dni_de_persona(db:Session,dni: int):
+
+def traer_turnos_por_dni_de_persona(db: Session, dni: int):
     try:
         persona_db = (
             db.query(Persona)
@@ -181,16 +122,12 @@ def traer_turnos_por_dni_de_persona(db:Session,dni: int):
             .options(joinedload(Persona.turnos))
             .first()
         )
-
         if persona_db is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada"
-            )  
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona no encontrada")  
 
         turno_info = []
-        
         for turno_db in persona_db.turnos:
-            turno=models.TurnoInfoDni(
+            turno = models.TurnoInfoDni(
                 id=turno_db.id,
                 fecha=turno_db.fecha,
                 hora=turno_db.hora,
@@ -198,16 +135,12 @@ def traer_turnos_por_dni_de_persona(db:Session,dni: int):
             )
             turno_info.append(turno)
 
-        datos_persona=models.DatosPersona.model_validate(persona_db)
-
-        lista_turnos=models.PersonaConTurnos(
-            persona=datos_persona,
-            turnos=turno_info
-        )
-
+        datos_persona = models.DatosPersona.model_validate(persona_db)
+        lista_turnos = models.PersonaConTurnos(persona=datos_persona, turnos=turno_info)
         return [lista_turnos]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al buscar persona: {str(e)}")
+
 
 def agregar_titulo(layout, texto):
     layout.add(
@@ -217,7 +150,6 @@ def agregar_titulo(layout, texto):
             font_color=HexColor("#000000"),
             font="Helvetica-Bold",
             margin_bottom=2,
-            
         )
     )
     layout.add(
@@ -228,21 +160,24 @@ def agregar_titulo(layout, texto):
         )
     )
 
-def agregar_tabla(numero_filas:int, numero_columnas:int, tamaño_columnas:list):
-    
-    tabla = FixedColumnWidthTable(number_of_rows=numero_filas +1,
-                                  number_of_columns=numero_columnas,
-                                  column_widths=tamaño_columnas)
-    
+
+def agregar_tabla(numero_filas: int, numero_columnas: int, tamaño_columnas: list):
+    tabla = FixedColumnWidthTable(
+        number_of_rows=numero_filas + 1,
+        number_of_columns=numero_columnas,
+        column_widths=tamaño_columnas
+    )
     tabla.set_padding_on_all_cells(5, 5, 5, 5)
     tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
     return tabla
+
 
 def validar_email(email: str):
     patron = r'^[\w\.-]+@[\w\.-]+\.\w+$'
     if not re.match(patron, email):
         raise ValueError("Email inválido")
     return True
+
 
 def validar_fecha_nacimiento(año, mes, dia):
     año_actual = date.today().year

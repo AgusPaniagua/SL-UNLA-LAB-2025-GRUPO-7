@@ -7,9 +7,9 @@ import models  # models.models_Turnos = modelo Pydantic
 from models import TurnoCreate, PersonaCreate
 from datetime import date
 from typing import Optional
-import re, calendar
+import re, io , calendar, zipfile
 from pydantic import BaseModel
-from datetime import date, datetime 
+from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from turnosdisponibles import calcular_turnos_disponibles
 import utils, utilreportes
@@ -82,20 +82,103 @@ def turnos_cancelados_mes_actual():
             detail=f"Error al obtener turnos cancelados por persona: {str(e)}"
         )
     
-@app.get("/reportes/turnos-cancelados-mes-pdf")
+@app.get("/reportes/pdf/turnos-cancelados-mes-pdf")
 def reportes_turnos_cancelados_pdf():
-    hoy = datetime.now()
-    mes = hoy.month
-    anio = hoy.year
-    resultado = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
-
-    pdf_bytes = utilreportes.generar_pdf_turnos_cancelados(resultado)
-    return StreamingResponse(
-        pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=turnos_cancelados.pdf"}
-    )
+    try:
+        pdf_bytes, nombre_archivo = utilreportes.generar_pdf_turnos_cancelados(db)
+        return StreamingResponse(
+            pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"}
+        )
+    except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al generar PDF de turnos cancelados por persona: {str(e)}"
+            )
     
+@app.get("/reportes/pdf/turnos-por-fecha-pdf")
+def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
+    try: 
+        #pdf_bytes = utilreportes.generar_pdf_turnos_por_fecha(db, fecha)
+        pdf_bytes = utilreportes.generar_pdf_turnos_por_fecha_agrupado(db, fecha)
+        if not pdf_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No se encontraron turnos para la fecha {fecha}"
+            )
+        return StreamingResponse(
+            pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=reporte_turnos_{fecha}.pdf"}
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener PDF turnos por fecha: {str(e)}"
+        )
+
+@app.get("/reportes/csv/turnos-cancelados-por-mes-csv")
+def descargar_turnos_cancelados_csv():
+    csv_bytes = utilreportes.generar_csv_turnos_cancelados(db)
+    if not csv_bytes:
+        raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+    
+    filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv"
+    return StreamingResponse(
+        csv_bytes,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/reportes/csv/zip/turnos-cancelados-por-mes-csv-zip")
+def descargar_zip_turnos_cancelados():
+    buffer_personas, buffer_turnos = utilreportes.generar_archivos_csv_turnos_cancelados(db)
+
+    if not buffer_personas and not buffer_turnos:
+        raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+
+        if buffer_personas:
+            zip_file.writestr(
+                f"personas_canceladas_{datetime.now().strftime('%Y-%m')}.csv",
+                buffer_personas.getvalue().decode("utf-8")
+            )
+
+        if buffer_turnos:
+            zip_file.writestr(
+                f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv",
+                buffer_turnos.getvalue().decode("utf-8")
+            )
+
+    zip_buffer.seek(0)
+
+    filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.zip"
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/reportes/excel/turnos-cancelados-por-mes-excel")
+def descargar_excel_turnos_cancelados():
+    excel_buffer = utilreportes.generar_excel_turnos_cancelados(db)
+
+    if not excel_buffer:
+        raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+
+    filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.xlsx"
+
+    return StreamingResponse(
+        excel_buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 @app.patch("/turnos/{turno_id}", response_model=models.models_Turnos)
 def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):
     turno = db.query(Turnos).filter(Turnos.id == turno_id).first()

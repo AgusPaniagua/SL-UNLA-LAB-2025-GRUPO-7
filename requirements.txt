@@ -4,4 +4,4 @@ pandas
 borb==2.1.5
 uvicorn
 python-dotenv
-
+XlsxWriter
