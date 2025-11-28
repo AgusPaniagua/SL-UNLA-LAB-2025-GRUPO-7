@@ -56,6 +56,7 @@ Link a la collections de Postman
     - `POST /turnos` — Crear turno
     - `PUT /turnos/{id}/confirmar`- Confirmar turno
     - `GET /reportes/turnos-cancelados?min=5`- Trae personas con 5 turnos cancelados como mínimo
+	
 **Maximiliano Fabián Anabalon**  
     - `GET /turnos/` — Leer turnos 
     - `GET /turnos/{turno_id}` — Obtener turno por ID  
@@ -73,10 +74,12 @@ Link a la collections de Postman
     Ejemplo: "http://127.0.0.1:8000/reportes/csv/zip/turnos-cancelados-por-mes-csv-zip"
     - `GET /reportes/excel/turnos-cancelados-por-mes-excel`-Trae los turnos cancelados del mes actual en Excel en dos tablas 
     Ejemplo: "http://127.0.0.1:8000/reportes/excel/turnos-cancelados-por-mes-excel"
+	
 **Fernando Antonio Gomez**  
     - `GET /turnos_disponibles` — Calcular/obtener turnos disponibles para una fecha
     - `GET /reportes/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD`-Turnos confirmados desde/hasta
     - `PUT /turnos/{id}/cancelar`- Cancelar turno
+	
 **Paniagua Agustín Marcelo**  
     - `GET /personas/` — Traer personas  
     - `GET /personas/{persona_id}` — Obtener persona por ID  
