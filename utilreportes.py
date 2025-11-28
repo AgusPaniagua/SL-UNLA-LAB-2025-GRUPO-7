@@ -2,7 +2,7 @@ import io
 import pandas as pd
 from decimal import Decimal
 from pathlib import Path
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, date, time
 from sqlalchemy.orm import Session
@@ -22,100 +22,113 @@ def generar_pdf_turnos_cancelados(db: Session, data: dict = None):
     Genera un PDF con los turnos cancelados según la estructura JSON que pasaste.
     Devuelve un BytesIO listo para enviar como StreamingResponse en FastAPI.
     """
-    if data is None:
-        hoy = datetime.now()
-        mes = hoy.month
-        anio = hoy.year
-        data = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
+    try:
+        if data is None:
+            hoy = datetime.now()
+            mes = hoy.month
+            anio = hoy.year
+            data = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
+        
+        if not data["turnos"]:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos cancelados para el período solicitado."
+            )
+        
+        doc = Document()
+        page = Page()
+        doc.add_page(page)
+        layout = SingleColumnLayout(page)
 
-    doc = Document()
-    page = Page()
-    doc.add_page(page)
-    layout = SingleColumnLayout(page)
+        # Títulos existentes    
+        layout.add(Paragraph(f"Materia: Seminario Python", font_size=26, font_color=HexColor("003366"), font="Helvetica-Bold", horizontal_alignment=Alignment.CENTERED))
+        layout.add(Paragraph(f"Alumno: Maximiliano F. Anabalon", font_size=20, font_color=HexColor("003366"), font="Helvetica-Bold", horizontal_alignment=Alignment.CENTERED))
+        layout.add(Paragraph(" "))
+        layout.add(Paragraph(f"Reporte de Turnos Cancelados - {data['mes'].capitalize()} {data['anio']}", font_size=18, horizontal_alignment=Alignment.CENTERED))
+        layout.add(Paragraph(f"Cantidad total de turnos cancelados: {data['cantidad']}", font_size=14, horizontal_alignment=Alignment.CENTERED))
+        layout.add(Paragraph(" "))  
+        layout.add(Paragraph(" "))
 
-    # Títulos existentes    
-    layout.add(Paragraph(f"Materia: Seminario Python", font_size=26, font_color=HexColor("003366"), font="Helvetica-Bold", horizontal_alignment=Alignment.CENTERED))
-    layout.add(Paragraph(f"Alumno: Maximiliano F. Anabalon", font_size=20, font_color=HexColor("003366"), font="Helvetica-Bold", horizontal_alignment=Alignment.CENTERED))
-    layout.add(Paragraph(" "))
-    layout.add(Paragraph(f"Reporte de Turnos Cancelados - {data['mes'].capitalize()} {data['anio']}", font_size=18, horizontal_alignment=Alignment.CENTERED))
-    layout.add(Paragraph(f"Cantidad total de turnos cancelados: {data['cantidad']}", font_size=14, horizontal_alignment=Alignment.CENTERED))
-    layout.add(Paragraph(" "))  
-    layout.add(Paragraph(" "))
-
-    ruta_actual = Path(__file__).parent
-    ruta_img = ruta_actual / "img" / "img_reporte.jpg"
-    layout.add(
-        Image(
-            ruta_img,            
-            width=Decimal(400),      
-            height=Decimal(300),     
-            horizontal_alignment=Alignment.CENTERED
-        )
-    )
-
-    page2 = Page()
-    doc.add_page(page2)
-    layout2 = SingleColumnLayout(page2)
-    layout2.add(Paragraph(" "))
-
-    for persona_data in data["turnos"]: 
-        persona = persona_data.persona  
-        layout2.add(Paragraph(f"NOMBRE: {persona.nombre}", font="Helvetica-Bold", font_size=14, font_color=HexColor("0D1366"), horizontal_alignment=Alignment.CENTERED))
-        layout2.add(Paragraph(f"DNI: {persona.dni} - EMAIL {persona.email} - TELEFONO: {persona.telefono}", font="Helvetica", font_size=12, font_color=HexColor("0D1366"), horizontal_alignment=Alignment.CENTERED))
-
-        if puede_sacar_turno(db, persona.id):
-            layout2.add(Paragraph(f"Habilitado para turno: SI", font_size=12, font_color=HexColor("52D93D"), horizontal_alignment=Alignment.CENTERED))    
-        else:
-            layout2.add(Paragraph(f"Habilitado para turno: NO", font_size=12, font_color=HexColor("D90909"), horizontal_alignment=Alignment.CENTERED))    
-
-        encabezados = ["Turno ID", "Fecha", "Hora", "Estado", "Persona ID"]
-        tamaño_de_columnas = [
-            Decimal("0.20"),
-            Decimal("0.35"),
-            Decimal("0.35"),
-            Decimal("0.35"),
-            Decimal("0.35")
-        ]
-
-        # Crear tabla con la cantidad de filas necesarias
-        tabla = utils.agregar_tabla(
-            len(persona_data.turnos),
-            len(encabezados),
-            tamaño_de_columnas
+        ruta_actual = Path(__file__).parent
+        ruta_img = ruta_actual / "img" / "img_reporte.jpg"
+        layout.add(
+            Image(
+                ruta_img,            
+                width=Decimal(400),      
+                height=Decimal(300),     
+                horizontal_alignment=Alignment.CENTERED
+            )
         )
 
-        # Agregar encabezados
-        for encabezado in encabezados:
-            tabla.add(
-                TableCell(
-                    Paragraph(encabezado, font="Helvetica-Bold", font_color=HexColor("003366"))
-                )
-            )
-
-        # Agregar los turnos de la persona
-        for turno in persona_data.turnos:
-            hora_formateada = (
-                turno.hora.strftime("%H:%M")
-                if hasattr(turno.hora, "strftime")
-                else str(turno.hora)[0:5]
-            )
-            datos_turno = [turno.id, turno.fecha, hora_formateada, turno.estado, persona.id]
-            for dato in datos_turno:
-                tabla.add(TableCell(Paragraph(str(dato))))
-
-        layout2.add(tabla)
+        page2 = Page()
+        doc.add_page(page2)
+        layout2 = SingleColumnLayout(page2)
         layout2.add(Paragraph(" "))
 
-    pdf_bytes = io.BytesIO()
-    PDF.dumps(pdf_bytes, doc)
-    pdf_bytes.seek(0)
-    nombre_archivo = f"turnos_cancelados_{anio}_{mes:02d}.pdf"
-    return pdf_bytes, nombre_archivo
+        for persona_data in data["turnos"]: 
+            persona = persona_data.persona  
+            layout2.add(Paragraph(f"NOMBRE: {persona.nombre}", font="Helvetica-Bold", font_size=14, font_color=HexColor("0D1366"), horizontal_alignment=Alignment.CENTERED))
+            layout2.add(Paragraph(f"DNI: {persona.dni} - EMAIL {persona.email} - TELEFONO: {persona.telefono}", font="Helvetica", font_size=12, font_color=HexColor("0D1366"), horizontal_alignment=Alignment.CENTERED))
+
+            if puede_sacar_turno(db, persona.id):
+                layout2.add(Paragraph(f"Habilitado para turno: SI", font_size=12, font_color=HexColor("52D93D"), horizontal_alignment=Alignment.CENTERED))    
+            else:
+                layout2.add(Paragraph(f"Habilitado para turno: NO", font_size=12, font_color=HexColor("D90909"), horizontal_alignment=Alignment.CENTERED))    
+
+            encabezados = ["Turno ID", "Fecha", "Hora", "Estado", "Persona ID"]
+            tamaño_de_columnas = [
+                Decimal("0.20"),
+                Decimal("0.35"),
+                Decimal("0.35"),
+                Decimal("0.35"),
+                Decimal("0.35")
+            ]
+
+            # Crear tabla con la cantidad de filas necesarias
+            tabla = utils.agregar_tabla(
+                len(persona_data.turnos),
+                len(encabezados),
+                tamaño_de_columnas
+            )
+
+            # Agregar encabezados
+            for encabezado in encabezados:
+                tabla.add(
+                    TableCell(
+                        Paragraph(encabezado, font="Helvetica-Bold", font_color=HexColor("003366"))
+                    )
+                )
+
+            # Agregar los turnos de la persona
+            for turno in persona_data.turnos:
+                hora_formateada = (
+                    turno.hora.strftime("%H:%M")
+                    if hasattr(turno.hora, "strftime")
+                    else str(turno.hora)[0:5]
+                )
+                datos_turno = [turno.id, turno.fecha, hora_formateada, turno.estado, persona.id]
+                for dato in datos_turno:
+                    tabla.add(TableCell(Paragraph(str(dato))))
+
+            layout2.add(tabla)
+            layout2.add(Paragraph(" "))
+
+        pdf_bytes = io.BytesIO()
+        PDF.dumps(pdf_bytes, doc)
+        pdf_bytes.seek(0)
+        nombre_archivo = f"turnos_cancelados_{anio}_{mes:02d}.pdf"
+        return pdf_bytes, nombre_archivo
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar PDF de turnos cancelados por persona: {str(e)}")
 
 def generar_pdf_turnos_por_fecha_agrupado(db: Session, fecha: date):
     try:
         data = utils.obtener_turnos_por_fecha_service(db, fecha)
-
+        if not data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontraron turnos para la fecha {fecha}."
+            )
         doc = Document()
 
         # ===================== PÁGINA 1 =====================
@@ -411,7 +424,6 @@ def generar_pdf_con_turnos_por_dni(data: list):
     return buffer
 
 
-<<<<<<< HEAD
 def generar_pdf_personas_con_5_cancelados(data: list, minimo: int):
 
     documento = Document()
@@ -479,7 +491,7 @@ def generar_pdf_personas_con_5_cancelados(data: list, minimo: int):
     PDF.dumps(buffer, documento)
     buffer.seek(0)
     return buffer
-=======
+
 def generar_pdf_turnos_por_fecha(db: Session, fecha: date):
     try:
         data = utils.obtener_turnos_por_fecha_service(db, fecha)
@@ -634,150 +646,169 @@ def puede_sacar_turno(db: Session, persona_id: int, meses: int = 6, limite_cance
 
 
 def generar_csv_turnos_cancelados(db):
-    hoy = datetime.now()
-    mes = hoy.month
-    anio = hoy.year
-    data = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
+    try:
+        hoy = datetime.now()
+        mes = hoy.month
+        anio = hoy.year
+        data = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
+        
+        if not data["turnos"]:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos cancelados para el período solicitado."
+            )
 
-    if not data["turnos"]:
-        return None
+        if not data["turnos"]:
+            return None
 
-    personas = []
-    for persona_data in data["turnos"]:
-        persona = persona_data.persona
-        habilitado = "SI" if puede_sacar_turno(db, persona.id) else "NO"
-        personas.append({
-            "ID Persona": persona.id,
-            "Nombre": persona.nombre,
-            "DNI": persona.dni,
-            "Email": persona.email,
-            "Telefono": persona.telefono,
-            "Habilitado": habilitado
-        })
-    df_personas = pd.DataFrame(personas)
-
-    turnos = []
-    for persona_data in data["turnos"]:
-        for turno in persona_data.turnos:
-            # hora_formateada = turno.hora.strftime("%H:%M") if isinstance(turno.hora, datetime) else turno.hora
-            hora_formateada = (turno.hora.strftime("%H:%M") if isinstance(turno.hora, (datetime, time))
-                            else str(turno.hora)[:5])
-            turnos.append({
-                "ID Turno": turno.id,
-                "ID Persona": persona_data.persona.id,
-                "Fecha": turno.fecha,
-                "Hora": hora_formateada,
-                "Estado": turno.estado
+        personas = []
+        for persona_data in data["turnos"]:
+            persona = persona_data.persona
+            habilitado = "SI" if puede_sacar_turno(db, persona.id) else "NO"
+            personas.append({
+                "ID Persona": persona.id,
+                "Nombre": persona.nombre,
+                "DNI": persona.dni,
+                "Email": persona.email,
+                "Telefono": persona.telefono,
+                "Habilitado": habilitado
             })
-    df_turnos = pd.DataFrame(turnos)
+        df_personas = pd.DataFrame(personas)
 
-    buffer = io.StringIO()
-    df_personas.to_csv(buffer, index=False, sep=';')
-    buffer.write("\n\n")
-    df_turnos.to_csv(buffer, index=False, sep=';')
-    buffer.seek(0)
-    return io.BytesIO(buffer.getvalue().encode("utf-8"))
+        turnos = []
+        for persona_data in data["turnos"]:
+            for turno in persona_data.turnos:
+                # hora_formateada = turno.hora.strftime("%H:%M") if isinstance(turno.hora, datetime) else turno.hora
+                hora_formateada = (turno.hora.strftime("%H:%M") if isinstance(turno.hora, (datetime, time))
+                                else str(turno.hora)[:5])
+                turnos.append({
+                    "ID Turno": turno.id,
+                    "ID Persona": persona_data.persona.id,
+                    "Fecha": turno.fecha,
+                    "Hora": hora_formateada,
+                    "Estado": turno.estado
+                })
+        df_turnos = pd.DataFrame(turnos)
+
+        buffer = io.StringIO()
+        df_personas.to_csv(buffer, index=False, sep=';')
+        buffer.write("\n\n")
+        df_turnos.to_csv(buffer, index=False, sep=';')
+        buffer.seek(0)
+        return io.BytesIO(buffer.getvalue().encode("utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener csv turnos cancelados:: {e}")
 
 
 def generar_archivos_csv_turnos_cancelados(db):
-    hoy = datetime.now()
-    mes = hoy.month
-    anio = hoy.year
-    data = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
-
-    if not data["turnos"]:
-        return None, None
-
-    personas = []
-    for persona_data in data["turnos"]:
-        persona = persona_data.persona
-        habilitado = "SI" if puede_sacar_turno(db, persona.id) else "NO"
-        personas.append({
-            "ID Persona": persona.id,
-            "Nombre": persona.nombre,
-            "DNI": persona.dni,
-            "Email": persona.email,
-            "Telefono": persona.telefono,
-            "Habilitado": habilitado
-        })
-    df_personas = pd.DataFrame(personas)
-
-    buffer_personas = io.BytesIO()
-    df_personas.to_csv(buffer_personas, index=False, sep=';')
-    buffer_personas.seek(0)
-
-    turnos = []
-    for persona_data in data["turnos"]:
-        for turno in persona_data.turnos:
-            # hora_formateada = (
-            #     turno.hora.strftime("%H:%M")
-            #     if isinstance(turno.hora, datetime)
-            #     else turno.hora
-            # )
-            hora_formateada = (turno.hora.strftime("%H:%M") if isinstance(turno.hora, (datetime, time))
-                            else str(turno.hora)[:5])
-            turnos.append({
-                "ID Turno": turno.id,
-                "ID Persona": persona_data.persona.id,
-                "Fecha": turno.fecha,
-                "Hora": hora_formateada,
-                "Estado": turno.estado
+    try:
+        hoy = datetime.now()
+        mes = hoy.month
+        anio = hoy.year
+        data = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
+        
+        if not data["turnos"]:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos cancelados para el período solicitado."
+            )
+        personas = []
+        for persona_data in data["turnos"]:
+            persona = persona_data.persona
+            habilitado = "SI" if puede_sacar_turno(db, persona.id) else "NO"
+            personas.append({
+                "ID Persona": persona.id,
+                "Nombre": persona.nombre,
+                "DNI": persona.dni,
+                "Email": persona.email,
+                "Telefono": persona.telefono,
+                "Habilitado": habilitado
             })
-    df_turnos = pd.DataFrame(turnos)
+        df_personas = pd.DataFrame(personas)
 
-    buffer_turnos = io.BytesIO()
-    df_turnos.to_csv(buffer_turnos, index=False, sep=';')
-    buffer_turnos.seek(0)
+        buffer_personas = io.BytesIO()
+        df_personas.to_csv(buffer_personas, index=False, sep=';')
+        buffer_personas.seek(0)
 
-    return buffer_personas, buffer_turnos
+        turnos = []
+        for persona_data in data["turnos"]:
+            for turno in persona_data.turnos:
+                # hora_formateada = (
+                #     turno.hora.strftime("%H:%M")
+                #     if isinstance(turno.hora, datetime)
+                #     else turno.hora
+                # )
+                hora_formateada = (turno.hora.strftime("%H:%M") if isinstance(turno.hora, (datetime, time))
+                                else str(turno.hora)[:5])
+                turnos.append({
+                    "ID Turno": turno.id,
+                    "ID Persona": persona_data.persona.id,
+                    "Fecha": turno.fecha,
+                    "Hora": hora_formateada,
+                    "Estado": turno.estado
+                })
+        df_turnos = pd.DataFrame(turnos)
 
+        buffer_turnos = io.BytesIO()
+        df_turnos.to_csv(buffer_turnos, index=False, sep=';')
+        buffer_turnos.seek(0)
+
+        return buffer_personas, buffer_turnos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener archivos csv en zip turnos cancelados:: {e}")
 
 def generar_excel_turnos_cancelados(db):
-    hoy = datetime.now()
-    mes = hoy.month
-    anio = hoy.year
-    data = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
+    try:
+        hoy = datetime.now()
+        mes = hoy.month
+        anio = hoy.year
+        data = utils.obtener_turnos_cancelados_por_mes_por_persona(db, mesQ=mes, anioQ=anio)
 
-    if not data["turnos"]:
-        return None
+        if not data["turnos"]:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos cancelados para el período solicitado."
+            )
 
-    personas = []
-    for persona_data in data["turnos"]:
-        persona = persona_data.persona
-        habilitado = "SI" if puede_sacar_turno(db, persona.id) else "NO"
-        personas.append({
-            "ID Persona": persona.id,
-            "Nombre": persona.nombre,
-            "DNI": persona.dni,
-            "Email": persona.email,
-            "Telefono": persona.telefono,
-            "Habilitado": habilitado
-        })
-    df_personas = pd.DataFrame(personas)
-
-    turnos = []
-    for persona_data in data["turnos"]:
-        for turno in persona_data.turnos:
-            # hora_formateada = (
-            #     turno.hora.strftime("%H:%M")
-            #     if isinstance(turno.hora, datetime)
-            #     else turno.hora
-            # )
-            hora_formateada = (turno.hora.strftime("%H:%M") if isinstance(turno.hora, (datetime, time))
-                            else str(turno.hora)[:5])
-            turnos.append({
-                "ID Turno": turno.id,
-                "ID Persona": persona_data.persona.id,
-                "Fecha": turno.fecha,
-                "Hora": hora_formateada,
-                "Estado": turno.estado
+        personas = []
+        for persona_data in data["turnos"]:
+            persona = persona_data.persona
+            habilitado = "SI" if puede_sacar_turno(db, persona.id) else "NO"
+            personas.append({
+                "ID Persona": persona.id,
+                "Nombre": persona.nombre,
+                "DNI": persona.dni,
+                "Email": persona.email,
+                "Telefono": persona.telefono,
+                "Habilitado": habilitado
             })
-    df_turnos = pd.DataFrame(turnos)
+        df_personas = pd.DataFrame(personas)
 
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_personas.to_excel(writer, sheet_name='Personas', index=False)
-        df_turnos.to_excel(writer, sheet_name='Turnos', index=False)
-    buffer.seek(0)
-    return buffer
->>>>>>> 0d1d4da (Actualizar app, utilreportes, utils, database y agregar imagenes)
+        turnos = []
+        for persona_data in data["turnos"]:
+            for turno in persona_data.turnos:
+                # hora_formateada = (
+                #     turno.hora.strftime("%H:%M")
+                #     if isinstance(turno.hora, datetime)
+                #     else turno.hora
+                # )
+                hora_formateada = (turno.hora.strftime("%H:%M") if isinstance(turno.hora, (datetime, time))
+                                else str(turno.hora)[:5])
+                turnos.append({
+                    "ID Turno": turno.id,
+                    "ID Persona": persona_data.persona.id,
+                    "Fecha": turno.fecha,
+                    "Hora": hora_formateada,
+                    "Estado": turno.estado
+                })
+        df_turnos = pd.DataFrame(turnos)
+
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_personas.to_excel(writer, sheet_name='Personas', index=False)
+            df_turnos.to_excel(writer, sheet_name='Turnos', index=False)
+        buffer.seek(0)
+        return buffer
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener excel turnos cancelados: {e}")
+

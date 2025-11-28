@@ -91,6 +91,8 @@ def reportes_turnos_cancelados_pdf():
             media_type="application/pdf",
             headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"}
         )
+    except HTTPException:
+        raise
     except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -112,6 +114,8 @@ def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD"))
             media_type="application/pdf",
             headers={"Content-Disposition": f"attachment; filename=reporte_turnos_{fecha}.pdf"}
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -120,64 +124,88 @@ def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD"))
 
 @app.get("/reportes/csv/turnos-cancelados-por-mes-csv")
 def descargar_turnos_cancelados_csv():
-    csv_bytes = utilreportes.generar_csv_turnos_cancelados(db)
-    if not csv_bytes:
-        raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
-    
-    filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv"
-    return StreamingResponse(
-        csv_bytes,
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
+    try:
+        csv_bytes = utilreportes.generar_csv_turnos_cancelados(db)
+        if not csv_bytes:
+            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+        
+        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv"
+        return StreamingResponse(
+            csv_bytes,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+            raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener csv turnos cancelados: {str(e)}"
+        )
 
 @app.get("/reportes/csv/zip/turnos-cancelados-por-mes-csv-zip")
 def descargar_zip_turnos_cancelados():
-    buffer_personas, buffer_turnos = utilreportes.generar_archivos_csv_turnos_cancelados(db)
+    try:
+        buffer_personas, buffer_turnos = utilreportes.generar_archivos_csv_turnos_cancelados(db)
 
-    if not buffer_personas and not buffer_turnos:
-        raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+        if not buffer_personas and not buffer_turnos:
+            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
 
-    zip_buffer = io.BytesIO()
+        zip_buffer = io.BytesIO()
 
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
 
-        if buffer_personas:
-            zip_file.writestr(
-                f"personas_canceladas_{datetime.now().strftime('%Y-%m')}.csv",
-                buffer_personas.getvalue().decode("utf-8")
-            )
+            if buffer_personas:
+                zip_file.writestr(
+                    f"personas_canceladas_{datetime.now().strftime('%Y-%m')}.csv",
+                    buffer_personas.getvalue().decode("utf-8")
+                )
 
-        if buffer_turnos:
-            zip_file.writestr(
-                f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv",
-                buffer_turnos.getvalue().decode("utf-8")
-            )
+            if buffer_turnos:
+                zip_file.writestr(
+                    f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv",
+                    buffer_turnos.getvalue().decode("utf-8")
+                )
 
-    zip_buffer.seek(0)
+        zip_buffer.seek(0)
 
-    filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.zip"
+        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.zip"
 
-    return StreamingResponse(
-        zip_buffer,
-        media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+            raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener csv en zip turnos cancelados: {str(e)}"
+        )
 
 @app.get("/reportes/excel/turnos-cancelados-por-mes-excel")
 def descargar_excel_turnos_cancelados():
-    excel_buffer = utilreportes.generar_excel_turnos_cancelados(db)
+    try:
+        excel_buffer = utilreportes.generar_excel_turnos_cancelados(db)
 
-    if not excel_buffer:
-        raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+        if not excel_buffer:
+            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
 
-    filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.xlsx"
+        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.xlsx"
 
-    return StreamingResponse(
-        excel_buffer,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
+        return StreamingResponse(
+            excel_buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+            raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener excel turnos cancelados: {str(e)}"
+        )
 
 @app.patch("/turnos/{turno_id}", response_model=models.models_Turnos)
 def actualizar_turno(turno_id: int, turno_actualizado: models.TurnoUpdate):

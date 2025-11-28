@@ -63,6 +63,16 @@ Link a la collections de Postman
     - `DELETE /turnos/{turno_id}` — Eliminar turno
     - `GET /reportes/turnos-por-fecha?fecha=YYYY-MM-DD`- Trae los turnos de una fecha
     - `GET /reportes/turnos-cancelados-por-mes`-Trae los turnos cancelados del mes actual
+    - `GET /reportes/pdf/turnos-cancelados-mes-pdf`-Trae los turnos de una fecha en pdf 
+    Ejemplo: "http://127.0.0.1:8000/reportes/pdf/turnos-cancelados-mes-pdf"
+    - `GET /reportes/pdf/turnos-por-fecha-pdf`-Trae los turnos de una fecha en pdf 
+    Ejemplo: "http://127.0.0.1:8000/reportes/pdf/turnos-por-fecha-pdf?fecha=2025-10-23"
+    - `GET /reportes/csv/turnos-cancelados-por-mes-csv`-Trae los turnos cancelados del mes actual en csv 
+    Ejemplo: "http://127.0.0.1:8000/reportes/csv/turnos-cancelados-por-mes-csv"
+    - `GET /reportes/csv/zip/turnos-cancelados-por-mes-csv-zip`-Trae los turnos cancelados del mes actual en dos csv en un zip 
+    Ejemplo: "http://127.0.0.1:8000/reportes/csv/zip/turnos-cancelados-por-mes-csv-zip"
+    - `GET /reportes/excel/turnos-cancelados-por-mes-excel`-Trae los turnos cancelados del mes actual en Excel en dos tablas 
+    Ejemplo: "http://127.0.0.1:8000/reportes/excel/turnos-cancelados-por-mes-excel"
 **Fernando Antonio Gomez**  
     - `GET /turnos_disponibles` — Calcular/obtener turnos disponibles para una fecha
     - `GET /reportes/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD`-Turnos confirmados desde/hasta
