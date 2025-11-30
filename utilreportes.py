@@ -15,6 +15,7 @@ from borb.pdf.canvas.layout.page_layout.multi_column_layout import SingleColumnL
 from borb.pdf.canvas.layout.table.table import TableCell
 from borb.pdf.canvas.layout.text.paragraph import Paragraph
 from borb.pdf.canvas.color.color import HexColor
+from borb.pdf.canvas.layout.table.fixed_column_width_table import FixedColumnWidthTable
 
 
 def generar_pdf_turnos_cancelados(db: Session, data: dict = None):
@@ -424,74 +425,6 @@ def generar_pdf_con_turnos_por_dni(data: list):
     return buffer
 
 
-def generar_pdf_personas_con_5_cancelados(data: list, minimo: int):
-
-    documento = Document()
-    pagina = Page()
-    documento.add_page(pagina)
-    diseño = SingleColumnLayout(pagina)
-
-    # Titulo
-    diseño.add(Paragraph("Materia: Seminario Python", font_size=22, font_color=HexColor("003366"), font="Helvetica-Bold"))
-    diseño.add(Paragraph("Alumno: Amalfitano Juan Ignacio", font_size=20, font_color=HexColor("003366"), font="Helvetica-Bold"))
-    diseño.add(Paragraph("DNI: 45.397.013", font_size=15, font_color=HexColor("003366"), font="Helvetica-Bold"))
-    diseño.add(Paragraph(" "))
-    diseño.add(Paragraph(f"Reporte: Personas con mínimo {minimo} turnos cancelados", font_size=18))
-    diseño.add(Paragraph(f"Cantidad de personas encontradas: {len(data)}", font_size=12))
-    diseño.add(Paragraph(" "))
-
-    for item in data:
-        p = item.persona
-
-        # Los datos de la persona
-        diseño.add(Paragraph(f"Persona: {p.nombre} (ID {p.id})", font="Helvetica-Bold", font_size=14, font_color=HexColor("0D1366")))
-        diseño.add(Paragraph(f"DNI: {p.dni} - Email: {p.email} - Teléfono: {p.telefono}", font_size=12))
-        diseño.add(Paragraph(f"Total de turnos cancelados: {item.cantidad_cancelados}", font_size=12))
-        diseño.add(Paragraph(" "))
-
-        # La tabla de los turnos
-        encabezados = ["ID", "Fecha", "Hora", "Estado"]
-        columnas = len(encabezados)
-
-        tabla = FixedColumnWidthTable(
-            number_of_rows=len(item.turnos) + 1,
-            number_of_columns=columnas,
-            column_widths=[
-                Decimal("0.25"),
-                Decimal("0.25"),
-                Decimal("0.25"),
-                Decimal("0.25"),
-            ]
-        )
-
-        # Encabezados
-        for e in encabezados:
-            tabla.add(TableCell(Paragraph(e, font="Helvetica-Bold", font_color=HexColor("003366"))))
-
-        # Turnos cancelados
-        for t in item.turnos:
-            fila = [
-                t.id,
-                str(t.fecha),
-                str(t.hora),
-                t.estado
-            ]
-            for campo in fila:
-                tabla.add(TableCell(Paragraph(str(campo))))
-
-        # Aca estan todos los estilos
-        tabla.set_padding_on_all_cells(5, 5, 5, 5)
-        tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
-        diseño.add(tabla)
-
-        diseño.add(Paragraph(" "))
-
-    # Y por ultimo se exporta a PDF
-    buffer = io.BytesIO()
-    PDF.dumps(buffer, documento)
-    buffer.seek(0)
-    return buffer
-
 def generar_pdf_turnos_por_fecha(db: Session, fecha: date):
     try:
         data = utils.obtener_turnos_por_fecha_service(db, fecha)
@@ -812,3 +745,183 @@ def generar_excel_turnos_cancelados(db):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener excel turnos cancelados: {e}")
 
+def generar_pdf_personas_con_5_cancelados(data: list, minimo: int):
+
+    documento = Document()
+    pagina = Page()
+    documento.add_page(pagina)
+    diseño = SingleColumnLayout(pagina)
+
+    # Titulo y encabezado
+    diseño.add(Paragraph("Materia: Seminario Python", font_size=22, font_color=HexColor("003366"), font="Helvetica-Bold"))
+    diseño.add(Paragraph("Alumno: Amalfitano Juan Ignacio", font_size=20, font_color=HexColor("003366"), font="Helvetica-Bold"))
+    diseño.add(Paragraph("DNI: 45.397.013", font_size=15, font_color=HexColor("003366"), font="Helvetica-Bold"))
+    diseño.add(Paragraph(" "))
+    diseño.add(Paragraph(f"Reporte: Personas con mínimo {minimo} turnos cancelados", font_size=18))
+    diseño.add(Paragraph(f"Cantidad de personas encontradas: {len(data)}", font_size=12))
+    diseño.add(Paragraph(" "))
+
+    for item in data:
+        p = item.persona
+
+        # Aca se muestran los datos de la persona
+        diseño.add(Paragraph(f"Persona: {p.nombre} (ID {p.id})", font="Helvetica-Bold", font_size=14, font_color=HexColor("0D1366")))
+        diseño.add(Paragraph(f"DNI: {p.dni} - Email: {p.email} - Teléfono: {p.telefono}", font_size=12))
+        diseño.add(Paragraph(f"Total de turnos cancelados: {item.cantidad_cancelados}", font_size=12))
+        diseño.add(Paragraph(" "))
+
+        encabezados = ["ID", "Fecha", "Hora", "Estado"]
+        columnas = len(encabezados)
+
+        tabla = FixedColumnWidthTable(
+            number_of_rows=len(item.turnos) + 1,
+            number_of_columns=columnas,
+            column_widths=[
+                Decimal("0.25"),
+                Decimal("0.25"),
+                Decimal("0.25"),
+                Decimal("0.25"),
+            ]
+        )
+
+        # Encabezados con ID - FECHA - HORA - ESTADO
+        for e in encabezados:
+            tabla.add(TableCell(Paragraph(e, font="Helvetica-Bold", font_color=HexColor("003366"))))
+
+        # Aca está la tabla de los turnos cancelados
+        for t in item.turnos:
+            fila = [
+                t.id,
+                str(t.fecha),
+                str(t.hora),
+                t.estado
+            ]
+            for campo in fila:
+                tabla.add(TableCell(Paragraph(str(campo))))
+
+        # Aca estan todos los estilos
+        tabla.set_padding_on_all_cells(5, 5, 5, 5)
+        tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
+        diseño.add(tabla)
+
+        diseño.add(Paragraph(" "))
+
+    # Y por ultimo genera el archivo PDF
+    buffer = io.BytesIO()
+    PDF.dumps(buffer, documento)
+    buffer.seek(0)
+    return buffer
+
+def generar_csv_personas_con_cancelados(data: list, minimo: int):
+    try:
+        # Si no hay datos, devolvemos un error de que no se encontraron personas
+        if not data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontraron personas con al menos {minimo} turnos cancelados."
+            )
+
+        # ---- PRIMER DATAFRAME: PERSONAS ----
+        personas = []
+        for item in data:
+            p = item.persona
+            personas.append({
+                "ID Persona": p.id,
+                "Nombre": p.nombre,
+                "DNI": p.dni,
+                "Email": p.email,
+                "Telefono": p.telefono,
+                "Total Cancelados": item.cantidad_cancelados
+            })
+
+        df_personas = pd.DataFrame(personas)
+
+        # ---- SEGUNDO DATAFRAME: TURNOS ----
+        turnos = []
+        for item in data:
+            for t in item.turnos:
+                hora_formateada = (
+                    t.hora.strftime("%H:%M")
+                    if isinstance(t.hora, (datetime, time))
+                    else str(t.hora)[:5]
+                )
+
+                turnos.append({
+                    "ID Turno": t.id,
+                    "ID Persona": item.persona.id,
+                    "Fecha": t.fecha,
+                    "Hora": hora_formateada,
+                    "Estado": t.estado,
+                })
+
+        df_turnos = pd.DataFrame(turnos)
+
+        # ---- ARMADO DEL CSV FINAL EN MEMORIA ----
+        buffer = io.StringIO()
+        df_personas.to_csv(buffer, index=False, sep=';')
+        buffer.write("\n\n")
+        df_turnos.to_csv(buffer, index=False, sep=';')
+        buffer.seek(0)
+        return io.BytesIO(buffer.getvalue().encode("utf-8"))
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al generar CSV de personas con cancelados: {str(e)}"
+        )
+
+def generar_csv_turnos_por_persona(data: list):
+    try:
+        persona_con_turnos = data[0]
+        persona = persona_con_turnos.persona
+        turnos = persona_con_turnos.turnos
+
+        # ------- DATOS DE PERSONA -------
+        persona_dict = [{
+            "ID Persona": persona.id,
+            "Nombre": persona.nombre,
+            "Email": persona.email,
+            "DNI": persona.dni,
+            "Telefono": persona.telefono,
+            "Edad": persona.edad,
+            "Habilitado": "SI" if persona.habilitado_para_turno else "NO"
+        }]
+        df_persona = pd.DataFrame(persona_dict)
+
+        # ------- DETALLE DE TURNOS -------
+        lista_turnos = []
+        for turno in turnos:
+            hora_formateada = (
+                turno.hora.strftime("%H:%M") 
+                if isinstance(turno.hora, (datetime, time)) 
+                else str(turno.hora)[:5]
+            )
+
+            lista_turnos.append({
+                "ID Turno": turno.id,
+                "Fecha": turno.fecha,
+                "Hora": hora_formateada,
+                "Estado": turno.estado
+            })
+
+        df_turnos = pd.DataFrame(lista_turnos)
+
+        # ------- EXPORTAR A BUFFER -------
+        buffer = io.StringIO()
+
+        # Persona primero
+        df_persona.to_csv(buffer, index=False, sep=";")
+        buffer.write("\n\n")
+
+        # Luego tabla de turnos
+        df_turnos.to_csv(buffer, index=False, sep=";")
+
+        buffer.seek(0)
+
+        return io.BytesIO(buffer.getvalue().encode("utf-8"))
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generando CSV de turnos por persona: {str(e)}"
+        )

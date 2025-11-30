@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException, Response, status, Query
+from fastapi import Depends, FastAPI, HTTPException, Response, status, Query
 from fastapi.responses import StreamingResponse  
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import extract, func
-from database import SessionLocal, Turnos, Persona
+from database import SessionLocal, Turnos, Persona, get_db
 import models  # models.models_Turnos = modelo Pydantic
 from models import TurnoCreate, PersonaCreate
 from datetime import date
@@ -13,6 +13,7 @@ from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from turnosdisponibles import calcular_turnos_disponibles
 import utils, utilreportes
+from utils import  validar_email, validar_fecha_nacimiento
 from config import HORARIOS_DISPONIBLES, ESTADOS_DISPONIBLES
 ESTADOS_VALIDOS = ESTADOS_DISPONIBLES
 print("Verificamos desde var_entornos Horarios disponibles:", HORARIOS_DISPONIBLES)
@@ -80,131 +81,6 @@ def turnos_cancelados_mes_actual():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener turnos cancelados por persona: {str(e)}"
-        )
-    
-@app.get("/reportes/pdf/turnos-cancelados-mes-pdf")
-def reportes_turnos_cancelados_pdf():
-    try:
-        pdf_bytes, nombre_archivo = utilreportes.generar_pdf_turnos_cancelados(db)
-        return StreamingResponse(
-            pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error al generar PDF de turnos cancelados por persona: {str(e)}"
-            )
-    
-@app.get("/reportes/pdf/turnos-por-fecha-pdf")
-def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
-    try: 
-        #pdf_bytes = utilreportes.generar_pdf_turnos_por_fecha(db, fecha)
-        pdf_bytes = utilreportes.generar_pdf_turnos_por_fecha_agrupado(db, fecha)
-        if not pdf_bytes:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No se encontraron turnos para la fecha {fecha}"
-            )
-        return StreamingResponse(
-            pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=reporte_turnos_{fecha}.pdf"}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al obtener PDF turnos por fecha: {str(e)}"
-        )
-
-@app.get("/reportes/csv/turnos-cancelados-por-mes-csv")
-def descargar_turnos_cancelados_csv():
-    try:
-        csv_bytes = utilreportes.generar_csv_turnos_cancelados(db)
-        if not csv_bytes:
-            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
-        
-        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv"
-        return StreamingResponse(
-            csv_bytes,
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except HTTPException:
-            raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al obtener csv turnos cancelados: {str(e)}"
-        )
-
-@app.get("/reportes/csv/zip/turnos-cancelados-por-mes-csv-zip")
-def descargar_zip_turnos_cancelados():
-    try:
-        buffer_personas, buffer_turnos = utilreportes.generar_archivos_csv_turnos_cancelados(db)
-
-        if not buffer_personas and not buffer_turnos:
-            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
-
-        zip_buffer = io.BytesIO()
-
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-
-            if buffer_personas:
-                zip_file.writestr(
-                    f"personas_canceladas_{datetime.now().strftime('%Y-%m')}.csv",
-                    buffer_personas.getvalue().decode("utf-8")
-                )
-
-            if buffer_turnos:
-                zip_file.writestr(
-                    f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv",
-                    buffer_turnos.getvalue().decode("utf-8")
-                )
-
-        zip_buffer.seek(0)
-
-        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.zip"
-
-        return StreamingResponse(
-            zip_buffer,
-            media_type="application/zip",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except HTTPException:
-            raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al obtener csv en zip turnos cancelados: {str(e)}"
-        )
-
-@app.get("/reportes/excel/turnos-cancelados-por-mes-excel")
-def descargar_excel_turnos_cancelados():
-    try:
-        excel_buffer = utilreportes.generar_excel_turnos_cancelados(db)
-
-        if not excel_buffer:
-            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
-
-        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.xlsx"
-
-        return StreamingResponse(
-            excel_buffer,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except HTTPException:
-            raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al obtener excel turnos cancelados: {str(e)}"
         )
 
 @app.patch("/turnos/{turno_id}", response_model=models.models_Turnos)
@@ -515,25 +391,6 @@ def turnos_por_dni_de_persona(dni: int):
         return turnos_persona
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al buscar persona: {str(e)}")
-    
-@app.get("/reporte/pdf/turnos-por-persona/{dni}")
-def turnos_por_dni_de_persona_pdf(
-    dni:int,
-    pagina: int=Query(1, ge=1, description="NUmero de paginas a mostrar"),
-    limite: int=Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
-    ):
-    try:
-        turnos_persona=utils.traer_turnos_por_dni_de_persona(db,dni)
-        inicio=(pagina-1)*limite
-        fin=inicio+limite
-        resultado_paginado=turnos_persona[inicio:fin]
-        buffer=utilreportes.generar_pdf_con_turnos_por_dni(resultado_paginado)
-        return StreamingResponse(buffer,
-                                  media_type="application/pdf",
-                                  headers={"Content-Disposition": "attachment;"
-                                  "filename=turnos_por_persona.pdf"})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
 #Endopoint para traer a las personas que tienen minimo 5 turnos cancelados, y el detalle de cada turno
@@ -591,29 +448,6 @@ def obtener_personas_con_turnos_cancelados(
 
     return respuesta
 
-#Endopoint para traer a las personas que tienen minimo 5 turnos cancelados, y el detalle de cada turno EN PDF
-@app.get("/reportes/turnos-cancelados-min-5-pdf/")
-def obtener_personas_con_min_5_turnos_cancelados_pdf(min: int = 5):
-    try:
-        resultados = obtener_personas_con_turnos_cancelados(min)
-
-        buffer = utilreportes.generar_pdf_personas_con_5_cancelados(resultados, min)
-
-        return StreamingResponse(
-    buffer,
-    media_type="application/pdf",
-    headers={
-        "Content-Disposition": f"attachment; filename=turnos_cancelados_min_{min}.pdf"
-    }
-)
-    
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-
-
 #Endpoint para traer todas las personas mediante el parametro habilitado_para_turno
 @app.get("/reportes/estado-personas/",response_model=list[models.DatosPersona])
 def personas_por_estado_de_turno(habilitado_para_turno: bool):
@@ -622,46 +456,6 @@ def personas_por_estado_de_turno(habilitado_para_turno: bool):
         return persona_por_estado
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-#Endpoint para descargar un pdf con los reportes del estado de las personas
-@app.get("/reportes/pdf/estado-personas/")
-def personas_por_estado_de_turno_pdf(
-    habilitado_para_turno: bool,
-    pagina: int = Query(1, ge=1, description="Numero de paginas a mostrar"),
-    limite: int = Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
-    ):
-    try:
-        personas_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
-        inicio=(pagina-1)*limite
-        fin = inicio + limite
-        resultado_paginado = personas_por_estado[inicio:fin]
-        buffer = utilreportes.generar_pdf_con_estado_de_personas(resultado_paginado)
-        return StreamingResponse(
-            buffer,
-            media_type="application/pdf",
-            headers={"Content-Disposition": "attachment; filename=estado_personas.pdf"}
-        )
-    except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-    
-@app.get("/reportes/csv/estado-personas/")
-def personas_por_estado_de_turno_csv(
-    habilitado_para_turno: bool,
-    pagina: int = Query(1, ge=1, description="Numero de paginas a mostrar"),
-    limite: int = Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
-    ):
-    try:
-        personas_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
-        inicio=(pagina-1)*limite
-        fin = inicio + limite
-        resultado_paginado = personas_por_estado[inicio:fin]
-        buffer = utilreportes.generar_csv_con_estado_de_personas(resultado_paginado)
-        return StreamingResponse(
-            buffer,
-            media_type="aplication/csv",
-            headers={"Content-Disposition": "attachment; ffilename=estado_personas.csv"}
-        )
-    except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 #Endpoint para traer los turnos confirmados en un período de tiempo
 @app.get("/reportes/turnos-confirmados", response_model=models.ReporteTurnosConfirmados)
@@ -708,3 +502,274 @@ def turnos_confirmados(
         total_paginas=total_paginas,
         resultados=elementos_pagina,  
     )
+
+# ----------- ULTIMOS REPORTES DE MAXIMILIANO FABIAN ANABALON -----------
+    
+@app.get("/reportes/pdf/turnos-por-fecha-pdf")
+def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
+    try: 
+        #pdf_bytes = utilreportes.generar_pdf_turnos_por_fecha(db, fecha)
+        pdf_bytes = utilreportes.generar_pdf_turnos_por_fecha_agrupado(db, fecha)
+        if not pdf_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No se encontraron turnos para la fecha {fecha}"
+            )
+        return StreamingResponse(
+            pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=reporte_turnos_{fecha}.pdf"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener PDF turnos por fecha: {str(e)}"
+        )
+    
+@app.get("/reportes/pdf/turnos-cancelados-mes-pdf")
+def reportes_turnos_cancelados_pdf():
+    try:
+        pdf_bytes, nombre_archivo = utilreportes.generar_pdf_turnos_cancelados(db)
+        return StreamingResponse(
+            pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al generar PDF de turnos cancelados por persona: {str(e)}"
+            )    
+
+@app.get("/reportes/csv/turnos-cancelados-por-mes-csv")
+def descargar_turnos_cancelados_csv():
+    try:
+        csv_bytes = utilreportes.generar_csv_turnos_cancelados(db)
+        if not csv_bytes:
+            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+        
+        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv"
+        return StreamingResponse(
+            csv_bytes,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+            raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener csv turnos cancelados: {str(e)}"
+        )
+
+@app.get("/reportes/csv/zip/turnos-cancelados-por-mes-csv-zip")
+def descargar_zip_turnos_cancelados():
+    try:
+        buffer_personas, buffer_turnos = utilreportes.generar_archivos_csv_turnos_cancelados(db)
+
+        if not buffer_personas and not buffer_turnos:
+            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+
+            if buffer_personas:
+                zip_file.writestr(
+                    f"personas_canceladas_{datetime.now().strftime('%Y-%m')}.csv",
+                    buffer_personas.getvalue().decode("utf-8")
+                )
+
+            if buffer_turnos:
+                zip_file.writestr(
+                    f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.csv",
+                    buffer_turnos.getvalue().decode("utf-8")
+                )
+
+        zip_buffer.seek(0)
+
+        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.zip"
+
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+            raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener csv en zip turnos cancelados: {str(e)}"
+        )
+
+@app.get("/reportes/excel/turnos-cancelados-por-mes-excel")
+def descargar_excel_turnos_cancelados():
+    try:
+        excel_buffer = utilreportes.generar_excel_turnos_cancelados(db)
+
+        if not excel_buffer:
+            raise HTTPException(status_code=404, detail="No hay turnos cancelados para este mes")
+
+        filename = f"turnos_cancelados_{datetime.now().strftime('%Y-%m')}.xlsx"
+
+        return StreamingResponse(
+            excel_buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+            raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener excel turnos cancelados: {str(e)}"
+        )
+
+
+# ----------- ULTIMOS REPORTES DE AGUSTIN MARCELO PANIAGUA -----------
+
+#Endpoint para descargar un PDF con los turnos de una persona usando su DNI
+@app.get("/reporte/pdf/turnos-por-persona/{dni}")
+def turnos_por_dni_de_persona_pdf(
+    dni:int,
+    pagina: int=Query(1, ge=1, description="NUmero de paginas a mostrar"),
+    limite: int=Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
+    ):
+    try:
+        turnos_persona=utils.traer_turnos_por_dni_de_persona(db,dni)
+        inicio=(pagina-1)*limite
+        fin=inicio+limite
+        resultado_paginado=turnos_persona[inicio:fin]
+        buffer=utilreportes.generar_pdf_con_turnos_por_dni(resultado_paginado)
+        return StreamingResponse(buffer,
+                                  media_type="application/pdf",
+                                  headers={"Content-Disposition": "attachment;"
+                                  "filename=turnos_por_persona.pdf"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+#Endpoint para descargar un PDF con los reportes del estado de las personas
+@app.get("/reportes/pdf/estado-personas/")
+def personas_por_estado_de_turno_pdf(
+    habilitado_para_turno: bool,
+    pagina: int = Query(1, ge=1, description="Numero de paginas a mostrar"),
+    limite: int = Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
+    ):
+    try:
+        personas_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
+        inicio=(pagina-1)*limite
+        fin = inicio + limite
+        resultado_paginado = personas_por_estado[inicio:fin]
+        buffer = utilreportes.generar_pdf_con_estado_de_personas(resultado_paginado)
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=estado_personas.pdf"}
+        )
+    except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+#Endpoint para descargar un CSV con los reportes del estado de las personas    
+@app.get("/reportes/csv/estado-personas/")
+def personas_por_estado_de_turno_csv(
+    habilitado_para_turno: bool,
+    pagina: int = Query(1, ge=1, description="Numero de paginas a mostrar"),
+    limite: int = Query(5, ge=1, description="Cantidad maximo de registros por pagina"),
+    ):
+    try:
+        personas_por_estado=utils.traer_personas_por_estado_de_turno(db,habilitado_para_turno)
+        inicio=(pagina-1)*limite
+        fin = inicio + limite
+        resultado_paginado = personas_por_estado[inicio:fin]
+        buffer = utilreportes.generar_csv_con_estado_de_personas(resultado_paginado)
+        return StreamingResponse(
+            buffer,
+            media_type="aplication/csv",
+            headers={"Content-Disposition": "attachment; ffilename=estado_personas.csv"}
+        )
+    except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+# ----------- ULTIMOS REPORTES DE JUAN IGNACIO AMALFITANO -----------
+
+#Endopoint para traer a las personas que tienen minimo 5 turnos cancelados, y el detalle de cada turno en PDF
+@app.get("/reportes/pdf/turnos-cancelados-min-5-pdf/")
+def obtener_personas_con_min_5_turnos_cancelados_pdf(min: int = 5):
+    try:
+        resultados = obtener_personas_con_turnos_cancelados(min)
+
+        buffer = utilreportes.generar_pdf_personas_con_5_cancelados(resultados, min)
+
+        return StreamingResponse(
+    buffer,
+    media_type="application/pdf",
+    headers={
+        "Content-Disposition": f"attachment; filename=turnos_cancelados_min_{min}.pdf"
+    }
+)
+    
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+#Endpoint para traer las personas con un minimo de turnos cancelados, en CSV
+@app.get("/reportes/csv/turnos-cancelados-min")
+def reportes_csv_turnos_cancelados_min(
+    min: int = Query(5, ge=1),
+    db: Session = Depends(get_db)
+):
+    try:
+        resultados = obtener_personas_con_turnos_cancelados(min)
+
+        csv_bytes = utilreportes.generar_csv_personas_con_cancelados(resultados, min)
+
+        filename = f"personas_con_{min}_o_mas_turnos_cancelados.csv"
+
+        return StreamingResponse(
+            csv_bytes,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al generar CSV: {str(e)}"
+        )
+    
+#Endpoint para traer los turnos de una persona por dni, en CSV    
+@app.get("/reportes/csv/turnos-por-persona-dni")
+def reportes_csv_turnos_por_persona_dni(
+    dni: int = Query(..., description="DNI de la persona"),
+    db: Session = Depends(get_db)
+):
+    try:
+        resultado = utils.traer_turnos_por_dni_de_persona(db, dni)
+
+        csv_bytes = utilreportes.generar_csv_turnos_por_persona(resultado)
+
+        filename = f"turnos_persona_{dni}.csv"
+
+        return StreamingResponse(
+            csv_bytes,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al generar CSV: {str(e)}"
+        ) 

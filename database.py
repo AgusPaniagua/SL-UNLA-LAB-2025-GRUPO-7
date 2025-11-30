@@ -7,6 +7,13 @@ engine = create_engine('sqlite:///data_base.db', echo=True)
 Base = declarative_base()
 SessionLocal = sessionmaker(bind=engine)    
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 #Creacion de tabla turnos
 class Turnos(Base): 
     __tablename__ = 'turnos' 
@@ -76,14 +83,32 @@ else:
 
 #Creacion de datos para la base datos por si no tiene ningun turno cargado
 if db.query(Turnos).count() == 0:
-    
-    turno1 = Turnos(fecha=date(2025, 9, 10), hora=time(10, 30), estado="pendiente", persona_id=1)
-    turno2 = Turnos(fecha=date(2025, 9, 11), hora=time(14, 0), estado="confirmado", persona_id=2)
-    
-    db.add_all([turno1, turno2])
+
+    turnos_iniciales = [
+        Turnos(fecha=date(2025, 9, 10), hora=time(10, 30), estado="pendiente", persona_id=1),
+        Turnos(fecha=date(2025, 9, 11), hora=time(14, 0), estado="confirmado", persona_id=2),
+    ]
+
+    nuevos_turnos = [
+        Turnos(fecha=date(2025, 12, 1), hora=time(10, 0), estado="confirmado", persona_id=1),
+        Turnos(fecha=date(2025, 12, 1), hora=time(10, 30), estado="confirmado", persona_id=2),
+        Turnos(fecha=date(2025, 12, 1), hora=time(11, 0), estado="cancelado", persona_id=1),
+        Turnos(fecha=date(2025, 12, 1), hora=time(11, 30), estado="cancelado", persona_id=2),
+        Turnos(fecha=date(2025, 12, 1), hora=time(12, 0), estado="cancelado", persona_id=1),
+        Turnos(fecha=date(2025, 12, 1), hora=time(12, 30), estado="confirmado", persona_id=2),
+        Turnos(fecha=date(2025, 12, 1), hora=time(13, 0), estado="confirmado", persona_id=1),
+        Turnos(fecha=date(2025, 12, 1), hora=time(13, 30), estado="confirmado", persona_id=2),
+        Turnos(fecha=date(2025, 12, 1), hora=time(14, 0), estado="cancelado", persona_id=1),
+        Turnos(fecha=date(2025, 12, 1), hora=time(14, 30), estado="cancelado", persona_id=2),
+        Turnos(fecha=date(2025, 12, 1), hora=time(15, 0), estado="cancelado", persona_id=1),
+        Turnos(fecha=date(2025, 12, 1), hora=time(15, 30), estado="confirmado", persona_id=2),
+        Turnos(fecha=date(2025, 12, 1), hora=time(16, 0), estado="cancelado", persona_id=1),
+        Turnos(fecha=date(2025, 12, 1), hora=time(16, 30), estado="confirmado", persona_id=2),
+    ]
+
+    db.add_all(turnos_iniciales + nuevos_turnos)
     db.commit()
-    print("Turnos insertados.")
+    print("Turnos insertados correctamente.")
+
 else:
     print("Ya existen turnos en la base.")
-
-db.close()
