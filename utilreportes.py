@@ -745,6 +745,8 @@ def generar_excel_turnos_cancelados(db):
         return buffer
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener excel turnos cancelados: {e}")
+    
+# ----------- ULTIMOS REPORTES DE JUAN IGNACIO AMALFITANO -----------    
 
 def generar_pdf_personas_con_5_cancelados(data: list, minimo: int):
 
@@ -822,7 +824,8 @@ def generar_csv_personas_con_cancelados(data: list, minimo: int):
                 detail=f"No se encontraron personas con al menos {minimo} turnos cancelados."
             )
 
-        # ---- PRIMER DATAFRAME: PERSONAS ----
+        # ---- DETALLES DE LA PERSONA ----
+        # Va recorriendo a cada persona
         personas = []
         for item in data:
             p = item.persona
@@ -835,9 +838,11 @@ def generar_csv_personas_con_cancelados(data: list, minimo: int):
                 "Total Cancelados": item.cantidad_cancelados
             })
 
+        # Convierte la lista, en una tabla con Pandas
         df_personas = pd.DataFrame(personas)
 
-        # ---- SEGUNDO DATAFRAME: TURNOS ----
+        # ---- DETALLE DE LOS TURNOS CANCELADOS ----
+          # Va recorriendo cada turno de cada persona
         turnos = []
         for item in data:
             for t in item.turnos:
@@ -855,14 +860,17 @@ def generar_csv_personas_con_cancelados(data: list, minimo: int):
                     "Estado": t.estado,
                 })
 
+        # Convierte la lista, en una tabla con Pandas
         df_turnos = pd.DataFrame(turnos)
 
-        # ---- ARMADO DEL CSV FINAL EN MEMORIA ----
+        # ---- ARMADO DEL CSV ----
+        # Se crea el archivo, escribe la tabla de personas y la tabla de turnos
         buffer = io.StringIO()
         df_personas.to_csv(buffer, index=False, sep=';')
         buffer.write("\n\n")
         df_turnos.to_csv(buffer, index=False, sep=';')
         buffer.seek(0)
+        # Deja el archivo CSV listo para descargarlo
         return io.BytesIO(buffer.getvalue().encode("utf-8"))
 
     except Exception as e:
@@ -872,6 +880,7 @@ def generar_csv_personas_con_cancelados(data: list, minimo: int):
         )
 
 def generar_csv_turnos_por_persona(data: list):
+    # Aca extrae a las personas y a los turnos
     try:
         persona_con_turnos = data[0]
         persona = persona_con_turnos.persona
@@ -887,16 +896,14 @@ def generar_csv_turnos_por_persona(data: list):
             "Edad": persona.edad,
             "Habilitado": "SI" if persona.habilitado_para_turno else "NO"
         }]
+
+        # Convierte la lista, en una tabla con Pandas
         df_persona = pd.DataFrame(persona_dict)
 
         # ------- DETALLE DE TURNOS -------
         lista_turnos = []
         for turno in turnos:
-            hora_formateada = (
-                turno.hora.strftime("%H:%M") 
-                if isinstance(turno.hora, (datetime, time)) 
-                else str(turno.hora)[:5]
-            )
+            hora_formateada = turno.hora.strftime("%H:%M")
 
             lista_turnos.append({
                 "ID Turno": turno.id,
@@ -905,20 +912,21 @@ def generar_csv_turnos_por_persona(data: list):
                 "Estado": turno.estado
             })
 
+        # Convierte la lista, en una tabla con Pandas
         df_turnos = pd.DataFrame(lista_turnos)
 
-        # ------- EXPORTAR A BUFFER -------
         buffer = io.StringIO()
 
-        # Persona primero
+        # Primero escribe los datos de la persona
         df_persona.to_csv(buffer, index=False, sep=";")
         buffer.write("\n\n")
 
-        # Luego tabla de turnos
+        # Luego los datos de la tabla de turnos
         df_turnos.to_csv(buffer, index=False, sep=";")
 
         buffer.seek(0)
 
+        # Deja el archivo CSV listo para descargarlo
         return io.BytesIO(buffer.getvalue().encode("utf-8"))
 
     except Exception as e:

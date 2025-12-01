@@ -701,8 +701,9 @@ def personas_por_estado_de_turno_csv(
 @app.get("/reportes/pdf/turnos-cancelados-min-5-pdf/")
 def obtener_personas_con_min_5_turnos_cancelados_pdf(min: int = 5):
     try:
+        # Llama a una funcion la cual busca a esas personas que cancelaron min turnos, el detalle y la cantidad
         resultados = obtener_personas_con_turnos_cancelados(min)
-
+        # Luego genera el pdf con toda esa informacion
         buffer = utilreportes.generar_pdf_personas_con_5_cancelados(resultados, min)
 
         return StreamingResponse(
@@ -725,10 +726,12 @@ def reportes_csv_turnos_cancelados_min(
     db: Session = Depends(get_db)
 ):
     try:
+        # Igual que antes, trae la informacion de esas personas y sus turnos
         resultados = obtener_personas_con_turnos_cancelados(min)
-
+        # Aca se crean las 2 tablas de personas y la de turnos cancelados
         csv_bytes = utilreportes.generar_csv_personas_con_cancelados(resultados, min)
 
+        # Devuelve el archivo con un parametro el cual es el min de turnos cancelados que se estaba buscando
         filename = f"personas_con_{min}_o_mas_turnos_cancelados.csv"
 
         return StreamingResponse(
@@ -753,10 +756,11 @@ def reportes_csv_turnos_por_persona_dni(
     db: Session = Depends(get_db)
 ):
     try:
+        # Usa la funcion para traer a las personas y sus turnos
         resultado = utils.traer_turnos_por_dni_de_persona(db, dni)
-
+        # Aca se crean las 2 tablas de los datos de la persona y todos sus turnos
         csv_bytes = utilreportes.generar_csv_turnos_por_persona(resultado)
-
+        # Como hice anteriormente, uso el parametro del dni para ponerlo en el nombre del archivo
         filename = f"turnos_persona_{dni}.csv"
 
         return StreamingResponse(
