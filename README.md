@@ -53,12 +53,12 @@ Link a la collections de Postman
 
 **Juan Ignacio Amalfitano** 
     - `POST /personas` — Crear persona  
-    - `POST /turnos` — Crear turno
-    - `PUT /turnos/{id}/confirmar`- Confirmar turno
-    - `GET /reportes/turnos-cancelados?min=5`- Trae personas con 5 turnos cancelados como mínimo
-	- `GET /reportes/pdf/turnos-cancelados-min-5-pdf/`- Ejemplo "http://127.0.0.1:8000/reportes/pdf/turnos-cancelados-min-5-pdf/?min=5"
-	- `GET /reportes/csv/turnos-cancelados-min`- Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-cancelados-min?min=5"
-	- `GET /reportes/csv/turnos-por-persona-dni`- Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-por-persona-dni?dni=123456789"
+    - `POST /turnos` — Crear turno  
+    - `PUT /turnos/{id}/confirmar`- Confirmar turno  
+    - `GET /reportes/turnos-cancelados?min=5`- Trae personas con 5 turnos cancelados como mínimo  
+	- `GET /reportes/pdf/turnos-cancelados-min-5-pdf/`- Ejemplo "http://127.0.0.1:8000/reportes/pdf/turnos-cancelados-min-5-pdf/?min=5"  
+	- `GET /reportes/csv/turnos-cancelados-min`- Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-cancelados-min?min=5"  
+	- `GET /reportes/csv/turnos-por-persona-dni`- Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-por-persona-dni?dni=123456789"  
 	
 **Maximiliano Fabián Anabalon**  
     - `GET /turnos/` — Leer turnos   
