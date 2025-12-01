@@ -68,10 +68,7 @@ def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD"))
 
 @app.get("/reportes/turnos-cancelados-por-mes", response_model=models.TurnosCanceladosPorMes)
 def turnos_cancelados_mes_actual():
-#def turnos_cancelados_ultimo_mes(mes: int = Query(None, ge=1, le=12, description="Número de mes (1-12)"),
-    #anio: int = Query(None, description="Año, por ejemplo 2025")):
     try: 
-         # Obtener mes y año actuales
         hoy = datetime.now()
         mes = hoy.month
         anio = hoy.year
@@ -128,7 +125,6 @@ def actualizar_turno_put(turno_id: int, turno_actualizado: models.models_Turnos)
     turno.estado = turno_actualizado.estado
     turno.persona_id = turno_actualizado.persona_id if turno_actualizado.persona_id > 0 else turno.persona_id
     #turno.persona_id = turno_actualizado.persona_id
-
     db.commit()
     db.refresh(turno)
     return turno
@@ -508,7 +504,6 @@ def turnos_confirmados(
 @app.get("/reportes/pdf/turnos-por-fecha-pdf")
 def obtener_turnos_por_fecha(fecha: date = Query(..., description="YYYY-MM-DD")):
     try: 
-        #pdf_bytes = utilreportes.generar_pdf_turnos_por_fecha(db, fecha)
         pdf_bytes = utilreportes.generar_pdf_turnos_por_fecha_agrupado(db, fecha)
         if not pdf_bytes:
             raise HTTPException(
