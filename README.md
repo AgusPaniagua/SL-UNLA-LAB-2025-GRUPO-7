@@ -87,3 +87,9 @@ Link a la collections de Postman
     - `DELETE /personas/{persona_id}` — Eliminar persona
     - `GET /reportes/turnos-por-persona?dni=12345678`- Trae turnos de una persona
     - `GET /reportes/estado-personas?habilitada=true/false`-Trae Personas habilitadas/inhabilitadas para turno
+	-`GET /reportes/pdf/estado-personas/` - Trae las personas habilitados en un pdf
+	http://127.0.0.1:8000/reportes/pdf/estado-personas/?habilitado_para_turno=false&pagina=1&limite=5
+	-`GET /reportes/csv/estado-personas/` - Trae las personas habilitados en un csv
+	http://127.0.0.1:8000/reportes/csv/estado-personas/?habilitado_para_turno=true&pagina=1&limite=5
+	-`GET /reporte/pdf/turnos-por-persona/{dni}` - Trae todos los turnos de una persona en especifico en un pdf
+	http://127.0.0.1:8000/reporte/pdf/turnos-por-persona/123456789?pagina=1&limite=5
