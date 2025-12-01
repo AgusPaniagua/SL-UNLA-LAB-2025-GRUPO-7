@@ -1,5 +1,6 @@
 import io
 import pandas as pd
+import csv
 from decimal import Decimal
 from pathlib import Path
 from fastapi import HTTPException, status
@@ -925,3 +926,266 @@ def generar_csv_turnos_por_persona(data: list):
             status_code=500,
             detail=f"Error generando CSV de turnos por persona: {str(e)}"
         )
+    
+def generar_pdf_turnos_confirmados(turnos, desde, hasta):
+    from datetime import time, datetime
+    def hhmm(h):
+        return h.strftime("%H:%M") if isinstance(h, (time, datetime)) else str(h)[:5]
+    # Agrupar turnos por persona
+    por_persona = {}  
+    for t in turnos:
+        p = getattr(t, "persona", None)
+        if p is None:
+            continue
+        if p.id not in por_persona:
+            por_persona[p.id] = {"persona": p, "turnos": []}
+        por_persona[p.id]["turnos"].append(t)
+
+    doc = Document()
+
+    # Portada / resumen
+    page1 = Page()
+    doc.add_page(page1)
+    lay1 = SingleColumnLayout(page1)
+    lay1.add(Paragraph(
+        "Materia: Seminario de Lenguajes",
+        font="Helvetica-Bold", font_size=16, font_color=HexColor("003366"),
+        horizontal_alignment=Alignment.CENTERED
+    ))
+    lay1.add(Paragraph(
+        "Alumno: Gomez Fernando",
+        font="Helvetica-Bold", font_size=14, font_color=HexColor("003366"),
+        horizontal_alignment=Alignment.CENTERED
+    ))
+    lay1.add(Paragraph(
+        "DNI: 43.036.843",
+        font="Helvetica-Bold", font_size=14, font_color=HexColor("003366"),
+        horizontal_alignment=Alignment.CENTERED
+    ))
+    lay1.add(Paragraph(" "))  # espacio
+
+    lay1.add(Paragraph(
+        "Turnos confirmados",
+        font="Helvetica-Bold", font_size=22, font_color=HexColor("003366"),
+        horizontal_alignment=Alignment.CENTERED
+    ))
+    lay1.add(Paragraph(
+        f"Período: {desde.isoformat()} a {hasta.isoformat()}",
+        font_size=14, horizontal_alignment=Alignment.CENTERED
+    ))
+    lay1.add(Paragraph(
+        f"Personas con turnos confirmados: {len(por_persona)}  |  Total de turnos: {len(turnos)}",
+        font_size=11, horizontal_alignment=Alignment.CENTERED
+    ))
+    lay1.add(Paragraph(" "))
+
+    
+    page = Page()
+    doc.add_page(page)
+    layout = SingleColumnLayout(page)
+    layout.add(Paragraph(" "))
+
+    filas_en_pagina = 0
+    LIMITE_FILAS = 18
+
+    def _nueva_pagina():
+        nonlocal page, layout, filas_en_pagina
+        page = Page()
+        doc.add_page(page)
+        layout = SingleColumnLayout(page)
+        layout.add(Paragraph(" "))
+        filas_en_pagina = 0
+
+    for _, paquete in sorted(por_persona.items(), key=lambda kv: kv[0]):
+        persona = paquete["persona"]
+        lista = paquete["turnos"]
+
+        if filas_en_pagina >= LIMITE_FILAS:
+            _nueva_pagina()
+
+        layout.add(Paragraph(
+            f"NOMBRE: {getattr(persona, 'nombre', '-')}",
+            font="Helvetica-Bold", font_size=14, font_color=HexColor("0D1366"),
+            horizontal_alignment=Alignment.CENTERED
+        ))
+        layout.add(Paragraph(
+            f"DNI: {getattr(persona, 'dni', '-')}"
+            f"  -  EMAIL: {getattr(persona, 'email', '-')}"
+            f"  -  TELÉFONO: {getattr(persona, 'telefono', '-')}",
+            font_size=11, font_color=HexColor("0D1366"),
+            horizontal_alignment=Alignment.CENTERED
+        ))
+
+        fecha_nac = getattr(persona, "fecha_de_nacimiento", "")
+        edad = getattr(persona, "edad", "")
+        habilitado = "SI" if getattr(persona, "habilitado_para_turno", False) else "NO"
+        layout.add(Paragraph(
+            f"Fecha nac.: {fecha_nac}  |  Edad: {edad}  |  Habilitado: {habilitado}",
+            font_size=10, horizontal_alignment=Alignment.CENTERED
+        ))
+        layout.add(Paragraph(" "))
+
+        encabezados = ["Turno ID", "Fecha", "Hora", "Estado"]
+        col_widths = [Decimal("0.20"), Decimal("0.35"), Decimal("0.35"), Decimal("0.35")]
+
+        tabla = FixedColumnWidthTable(
+            number_of_rows=len(lista) + 1,
+            number_of_columns=len(encabezados),
+            column_widths=col_widths
+        )
+
+        for h in encabezados:
+            tabla.add(TableCell(
+                Paragraph(h, font="Helvetica-Bold", font_color=HexColor("003366"))
+            ))
+
+        for t in lista:
+            tabla.add(TableCell(Paragraph(str(t.id))))
+            tabla.add(TableCell(Paragraph(t.fecha.isoformat())))
+            tabla.add(TableCell(Paragraph(hhmm(t.hora))))  # <--- reemplazo
+            tabla.add(TableCell(Paragraph(t.estado)))
+
+        tabla.set_padding_on_all_cells(5, 5, 5, 5)
+        tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
+        layout.add(tabla)
+        layout.add(Paragraph(" "))
+
+        filas_en_pagina += min(len(lista) + 4, LIMITE_FILAS)
+
+    buf = io.BytesIO()
+    PDF.dumps(buf, doc)
+    buf.seek(0)
+    nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.pdf"
+    return buf, nombre
+
+def generar_csv_turnos_confirmados(turnos, desde, hasta):
+
+    def hhmm(h):
+        return h.strftime("%H:%M") if isinstance(h, (time, datetime)) else str(h)[:5]
+
+    # Agrupar por persona
+    por_persona = {}  
+    for t in turnos:
+        p = getattr(t, "persona", None)
+        if p is None:
+            continue
+        if p.id not in por_persona:
+            por_persona[p.id] = {"persona": p, "turnos": []}
+        por_persona[p.id]["turnos"].append(t)
+
+    
+    out = io.StringIO()
+
+    # Datos iniciales
+    out.write("Reporte: Turnos confirmados\n")
+    out.write(f"Periodo: {desde.isoformat()} a {hasta.isoformat()}\n")
+    out.write(f"Total personas con turnos confirmados: {len(por_persona)}\n")
+    out.write(f"Total turnos confirmados: {len(turnos)}\n\n")
+    
+    #Datos persona
+    for _, paquete in sorted(por_persona.items(), key=lambda kv: kv[0]):
+        p = paquete["persona"]
+        lista = paquete["turnos"]
+
+        persona_cols = [
+            "persona_id", "nombre", "dni", "email", "telefono",
+            "fecha_nacimiento", "edad", "habilitado", "total_turnos_confirmados"
+        ]
+        persona_vals = [
+            getattr(p, "id", ""),
+            getattr(p, "nombre", ""),
+            getattr(p, "dni", ""),
+            getattr(p, "email", ""),
+            getattr(p, "telefono", ""),
+            getattr(p, "fecha_de_nacimiento", "") or "",
+            getattr(p, "edad", "") or "",
+            "SI" if getattr(p, "habilitado_para_turno", False) else "NO",
+            len(lista),
+        ]
+
+        # Fila de encabezado de persona
+        out.write(";".join(persona_cols) + "\n")
+        # Fila de datos de persona
+        out.write(";".join(str(v) for v in persona_vals) + "\n")
+
+        # Encabezado turnos
+        out.write("turno_id;fecha;hora;estado\n")
+        # Turnos
+        for t in lista:
+            out.write(f"{t.id};{t.fecha.isoformat()};{hhmm(t.hora)};{t.estado}\n")
+
+        out.write("\n")
+
+    data = out.getvalue().encode("utf-8-sig")
+    out.close()
+    nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.csv"
+    return io.BytesIO(data), nombre
+
+
+def generar_csv_turnos_por_fecha(turnos, fecha):
+
+    def hhmm(h):
+        return h.strftime("%H:%M") if isinstance(h, (time, datetime)) else str(h)[:5]
+
+    # Agrupar por persona 
+    por_persona = {}  
+    for t in sorted(turnos, key=lambda x: (getattr(x, "persona_id", 10**12), x.hora, x.id)):
+        p = getattr(t, "persona", None)
+        if p is None:
+            continue
+        if p.id not in por_persona:
+            por_persona[p.id] = {"persona": p, "turnos": []}
+        por_persona[p.id]["turnos"].append(t)
+
+    total_turnos = sum(len(pkg["turnos"]) for pkg in por_persona.values())
+    total_personas = len(por_persona)
+
+    buf_txt = io.StringIO()
+    w = csv.writer(buf_txt, delimiter=';', lineterminator='\n')
+
+    # Datos iniciales
+    w.writerow(["TOTAL_TURNOS", total_turnos])
+    w.writerow(["TOTAL_PERSONAS_CON_TURNOS", total_personas])
+    w.writerow([])  # línea en blanco
+    w.writerow([f"TURNOS_POR_FECHA: {fecha.isoformat()}"])
+    w.writerow([])
+
+    # Datos Persona
+    persona_header = [
+        "persona_id", "nombre", "dni", "email", "telefono",
+        "fecha_nacimiento", "edad", "habilitado", "total_turnos_persona"
+    ]
+    turnos_header = ["turno_id", "fecha", "hora", "estado"]
+
+    for _, paquete in sorted(por_persona.items(), key=lambda kv: kv[0]):
+        p = paquete["persona"]
+        lista = paquete["turnos"]
+
+        w.writerow(persona_header)
+        w.writerow([
+            getattr(p, "id", ""),
+            getattr(p, "nombre", ""),
+            getattr(p, "dni", ""),
+            getattr(p, "email", ""),
+            getattr(p, "telefono", ""),
+            (getattr(p, "fecha_de_nacimiento", "") or ""),
+            (getattr(p, "edad", "") or ""),
+            "SI" if getattr(p, "habilitado_para_turno", False) else "NO",
+            len(lista),
+        ])
+        w.writerow([])
+
+        # Tabla de turnos de esa persona
+        w.writerow(turnos_header)
+        for t in lista:
+            w.writerow([
+                t.id,
+                t.fecha.isoformat(),
+                hhmm(t.hora),
+                t.estado,
+            ])
+        w.writerow([])  
+
+    data = buf_txt.getvalue().encode("utf-8-sig") 
+    nombre = f"turnos_por_fecha_{fecha.isoformat()}.csv"
+    return io.BytesIO(data), nombre

@@ -773,3 +773,96 @@ def reportes_csv_turnos_por_persona_dni(
             status_code=500,
             detail=f"Error al generar CSV: {str(e)}"
         ) 
+
+# ----------- ULTIMOS REPORTES DE Gomez Fernando Antonio -----------
+
+#Endpoint para traer los turnos confirmados en un periodo de tiempo, en PDF
+@app.get("/reportes/pdf/turnos-confirmados-pdf")
+def Reporte_turnos_confirmados_pdf(
+    desde: date = Query(..., description="AAAA-MM-DD"),
+    hasta: date = Query(..., description="AAAA-MM-DD")
+):
+    try:
+        if desde > hasta:
+            raise HTTPException(status_code=400, detail="'desde' no puede ser mayor que 'hasta'.")
+
+        base = (
+            db.query(Turnos)
+              .options(joinedload(Turnos.persona))
+              .filter(Turnos.estado == "confirmado")
+              .filter(Turnos.fecha >= desde)
+              .filter(Turnos.fecha <= hasta)
+              .order_by(Turnos.persona_id.asc(), Turnos.fecha.asc(), Turnos.hora.asc(), Turnos.id.asc())
+        )
+        turnos = base.all()
+
+        buffer_pdf, nombre = utilreportes.generar_pdf_turnos_confirmados(
+            turnos, desde, hasta
+        )
+        return StreamingResponse(
+            buffer_pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{nombre}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
+
+#Endpoint para traer los turnos confirmados en un periodo de tiempo, en CSV
+@app.get("/reportes/csv/turnos-confirmados-csv")
+def reportes_turnos_confirmados_csv(
+    desde: date = Query(..., description="AAAA-MM-DD"),
+    hasta: date = Query(..., description="AAAA-MM-DD"),
+):
+    try:
+        if desde > hasta:
+            raise HTTPException(status_code=400, detail="'desde' no puede ser mayor que 'hasta'.")
+
+        turnos = (
+            db.query(Turnos)
+              .options(joinedload(Turnos.persona))
+              .filter(Turnos.estado == "confirmado")
+              .filter(Turnos.fecha >= desde)
+              .filter(Turnos.fecha <= hasta)
+              .order_by(Turnos.persona_id.asc(), Turnos.fecha.asc(), Turnos.hora.asc(), Turnos.id.asc())
+              .all()
+        )
+
+        buffer_csv, nombre = utilreportes.generar_csv_turnos_confirmados(turnos, desde, hasta)
+        return StreamingResponse(
+            buffer_csv,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{nombre}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar CSV: {str(e)}")
+
+#Endpoint para traer los turnos de una fecha especifica, en CSV
+@app.get("/reportes/csv/turnos-por-fecha-csv")
+def Reportes_turnos_por_fecha_csv(
+    fecha: date = Query(..., description="AAAA-MM-DD")
+):
+    try:
+        base = (
+            db.query(Turnos)
+              .options(joinedload(Turnos.persona))
+              .filter(Turnos.fecha == fecha)
+              .order_by(Turnos.persona_id.asc(), Turnos.hora.asc(), Turnos.id.asc())
+        )
+        turnos = base.all()
+
+        buffer_csv, nombre = utilreportes.generar_csv_turnos_por_fecha(
+            turnos, fecha
+        )
+        return StreamingResponse(
+            buffer_csv,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{nombre}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar CSV: {str(e)}")
