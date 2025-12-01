@@ -56,6 +56,9 @@ Link a la collections de Postman
     - `POST /turnos` — Crear turno
     - `PUT /turnos/{id}/confirmar`- Confirmar turno
     - `GET /reportes/turnos-cancelados?min=5`- Trae personas con 5 turnos cancelados como mínimo
+	- `GET /reportes/pdf/turnos-cancelados-min-5-pdf/`- Ejemplo "http://127.0.0.1:8000/reportes/pdf/turnos-cancelados-min-5-pdf/?min=5"
+	- `GET /reportes/csv/turnos-cancelados-min`- Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-cancelados-min?min=5"
+	- `GET /reportes/csv/turnos-por-persona-dni`- Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-por-persona-dni?dni=123456789"
 	
 **Maximiliano Fabián Anabalon**  
     - `GET /turnos/` — Leer turnos   
@@ -79,6 +82,12 @@ Link a la collections de Postman
     - `GET /turnos_disponibles` — Calcular/obtener turnos disponibles para una fecha
     - `GET /reportes/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD`-Turnos confirmados desde/hasta
     - `PUT /turnos/{id}/cancelar`- Cancelar turno
+	- `GET /reportes/pdf/turnos-confirmados-pdf`- 
+	Ejemplo "http://127.0.0.1:8000/reportes/pdf/turnos-confirmados-pdf?desde=2025-09-11&hasta=2025-12-01"
+	- `GET /reportes/csv/turnos-confirmados-csv`- 
+	Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-confirmados-csv?desde=2025-09-11&hasta=2025-12-01"
+	- `GET /reportes/csv/turnos-por-persona-dni`- 
+	Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-por-persona-dni?dni=123456789"
 	
 **Paniagua Agustín Marcelo**  
     - `GET /personas/` — Traer personas  
