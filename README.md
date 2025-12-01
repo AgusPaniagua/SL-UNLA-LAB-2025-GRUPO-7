@@ -53,9 +53,9 @@ Link a la collections de Postman
 
 **Juan Ignacio Amalfitano** 
     - `POST /personas` — Crear persona  
-    - `POST /turnos` — Crear turno  
-    - `PUT /turnos/{id}/confirmar`- Confirmar turno  
-    - `GET /reportes/turnos-cancelados?min=5`- Trae personas con 5 turnos cancelados como mínimo  
+    - `POST /turnos` — Crear turno   
+    - `PUT /turnos/{id}/confirmar`- Confirmar turno   
+    - `GET /reportes/turnos-cancelados?min=5`- Trae personas con 5 turnos cancelados como mínimo   
 	- `GET /reportes/pdf/turnos-cancelados-min-5-pdf/`- Ejemplo "http://127.0.0.1:8000/reportes/pdf/turnos-cancelados-min-5-pdf/?min=5"  
 	- `GET /reportes/csv/turnos-cancelados-min`- Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-cancelados-min?min=5"  
 	- `GET /reportes/csv/turnos-por-persona-dni`- Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-por-persona-dni?dni=123456789"  
@@ -82,23 +82,23 @@ Link a la collections de Postman
     - `GET /turnos_disponibles` — Calcular/obtener turnos disponibles para una fecha
     - `GET /reportes/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD`-Turnos confirmados desde/hasta
     - `PUT /turnos/{id}/cancelar`- Cancelar turno
-	- `GET /reportes/pdf/turnos-confirmados-pdf`- 
-	Ejemplo "http://127.0.0.1:8000/reportes/pdf/turnos-confirmados-pdf?desde=2025-09-11&hasta=2025-12-01"
-	- `GET /reportes/csv/turnos-confirmados-csv`- 
-	Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-confirmados-csv?desde=2025-09-11&hasta=2025-12-01"
-	- `GET /reportes/csv/turnos-por-persona-dni`- 
-	Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-por-persona-dni?dni=123456789"
+	- `GET /reportes/pdf/turnos-confirmados-pdf`-  
+	Ejemplo "http://127.0.0.1:8000/reportes/pdf/turnos-confirmados-pdf?desde=2025-09-11&hasta=2025-12-01"  
+	- `GET /reportes/csv/turnos-confirmados-csv`-   
+	Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-confirmados-csv?desde=2025-09-11&hasta=2025-12-01"  
+	- `GET /reportes/csv/turnos-por-persona-dni`-   
+	Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-por-persona-dni?dni=123456789"  
 	
 **Paniagua Agustín Marcelo**  
-    - `GET /personas/` — Traer personas  
-    - `GET /personas/{persona_id}` — Obtener persona por ID  
-    - `PUT /personas/{persona_id}` — Modificar persona  
-    - `DELETE /personas/{persona_id}` — Eliminar persona
-    - `GET /reportes/turnos-por-persona?dni=12345678`- Trae turnos de una persona
-    - `GET /reportes/estado-personas?habilitada=true/false`-Trae Personas habilitadas/inhabilitadas para turno
-	-`GET /reportes/pdf/estado-personas/` - Trae las personas habilitados en un pdf
-	http://127.0.0.1:8000/reportes/pdf/estado-personas/?habilitado_para_turno=false&pagina=1&limite=5
-	-`GET /reportes/csv/estado-personas/` - Trae las personas habilitados en un csv
-	http://127.0.0.1:8000/reportes/csv/estado-personas/?habilitado_para_turno=true&pagina=1&limite=5
-	-`GET /reporte/pdf/turnos-por-persona/{dni}` - Trae todos los turnos de una persona en especifico en un pdf
-	http://127.0.0.1:8000/reporte/pdf/turnos-por-persona/123456789?pagina=1&limite=5
+    - `GET /personas/` — Traer personas    
+    - `GET /personas/{persona_id}` — Obtener persona por ID 
+    - `PUT /personas/{persona_id}` — Modificar persona    
+    - `DELETE /personas/{persona_id}` — Eliminar persona  
+    - `GET /reportes/turnos-por-persona?dni=12345678`- Trae turnos de una persona  
+    - `GET /reportes/estado-personas?habilitada=true/false`-Trae Personas habilitadas/inhabilitadas para turno  
+	-`GET /reportes/pdf/estado-personas/` - Trae las personas habilitados en un pdf    
+	http://127.0.0.1:8000/reportes/pdf/estado-personas/?habilitado_para_turno=false&pagina=1&limite=5  
+	-`GET /reportes/csv/estado-personas/` - Trae las personas habilitados en un csv  
+	http://127.0.0.1:8000/reportes/csv/estado-personas/?habilitado_para_turno=true&pagina=1&limite=5  
+	-`GET /reporte/pdf/turnos-por-persona/{dni}` - Trae todos los turnos de una persona en especifico en un pdf  
+	http://127.0.0.1:8000/reporte/pdf/turnos-por-persona/123456789?pagina=1&limite=5  
