@@ -777,23 +777,29 @@ def reportes_csv_turnos_por_persona_dni(
 
 #Endpoint para traer los turnos confirmados en un periodo de tiempo, en PDF
 @app.get("/reportes/pdf/turnos-confirmados-pdf")
-def Reporte_turnos_confirmados_pdf(
+def reporte_turnos_confirmados_pdf(
     desde: date = Query(..., description="AAAA-MM-DD"),
-    hasta: date = Query(..., description="AAAA-MM-DD")
+    hasta: date = Query(..., description="AAAA-MM-DD"),
+    pagina: int = Query(1, ge=1, description="Número de página a mostrar"),
+    limite: int = Query(10, ge=1, description="Cantidad máxima de turnos por página"),
 ):
     try:
         if desde > hasta:
             raise HTTPException(status_code=400, detail="'desde' no puede ser mayor que 'hasta'.")
 
-        base = (
+        salto = (pagina - 1) * limite
+
+        consulta = (
             db.query(Turnos)
               .options(joinedload(Turnos.persona))
               .filter(Turnos.estado == "confirmado")
               .filter(Turnos.fecha >= desde)
               .filter(Turnos.fecha <= hasta)
               .order_by(Turnos.persona_id.asc(), Turnos.fecha.asc(), Turnos.hora.asc(), Turnos.id.asc())
+              .offset(salto)
+              .limit(limite)
         )
-        turnos = base.all()
+        turnos = consulta.all()
 
         buffer_pdf, nombre = utilreportes.generar_pdf_turnos_confirmados(
             turnos, desde, hasta
@@ -801,16 +807,53 @@ def Reporte_turnos_confirmados_pdf(
         return StreamingResponse(
             buffer_pdf,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{nombre}"'}
+            headers={"Content-Disposition": f'attachment; filename=\"{nombre}\"'}
         )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
 
+
 #Endpoint para traer los turnos confirmados en un periodo de tiempo, en CSV
 @app.get("/reportes/csv/turnos-confirmados-csv")
-def reportes_turnos_confirmados_csv(
+def reporte_turnos_confirmados_csv(
+    desde: date = Query(..., description="AAAA-MM-DD"),
+    hasta: date = Query(..., description="AAAA-MM-DD"),
+    pagina: int = Query(1, ge=1, description="Número de página a mostrar"),
+    limite: int = Query(10, ge=1, description="Cantidad máxima de turnos por página"),
+):
+    try:
+        if desde > hasta:
+            raise HTTPException(status_code=400, detail="'desde' no puede ser mayor que 'hasta'.")
+
+        salto = (pagina - 1) * limite
+
+        turnos = (
+            db.query(Turnos)
+              .options(joinedload(Turnos.persona))
+              .filter(Turnos.estado == "confirmado")
+              .filter(Turnos.fecha >= desde)
+              .filter(Turnos.fecha <= hasta)
+              .order_by(Turnos.persona_id.asc(), Turnos.fecha.asc(), Turnos.hora.asc(), Turnos.id.asc())
+              .offset(salto)
+              .limit(limite)
+              .all()
+        )
+
+        buffer_csv, nombre = utilreportes.generar_csv_turnos_confirmados(turnos, desde, hasta)
+        return StreamingResponse(
+            buffer_csv,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename=\"{nombre}\"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar CSV: {str(e)}")
+
+@app.get("/reportes/excel/turnos-confirmados")
+def reporte_turnos_confirmados_excel(
     desde: date = Query(..., description="AAAA-MM-DD"),
     hasta: date = Query(..., description="AAAA-MM-DD"),
 ):
@@ -828,30 +871,68 @@ def reportes_turnos_confirmados_csv(
               .all()
         )
 
-        buffer_csv, nombre = utilreportes.generar_csv_turnos_confirmados(turnos, desde, hasta)
+        buffer_excel, nombre = utilreportes.generar_excel_turnos_confirmados(turnos, desde, hasta)
+
         return StreamingResponse(
-            buffer_csv,
-            media_type="text/csv; charset=utf-8",
+            buffer_excel,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": f'attachment; filename="{nombre}"'}
         )
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al generar CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al generar Excel: {str(e)}")
+
+@app.get("/reportes/zip/turnos-confirmados")
+def reporte_turnos_confirmados_zip(
+    desde: date = Query(..., description="AAAA-MM-DD"),
+    hasta: date = Query(..., description="AAAA-MM-DD"),
+):
+    try:
+        if desde > hasta:
+            raise HTTPException(status_code=400, detail="'desde' no puede ser mayor que 'hasta'.")
+
+        turnos = (
+            db.query(Turnos)
+              .options(joinedload(Turnos.persona))
+              .filter(Turnos.estado == "confirmado")
+              .filter(Turnos.fecha >= desde)
+              .filter(Turnos.fecha <= hasta)
+              .order_by(Turnos.persona_id.asc(), Turnos.fecha.asc(), Turnos.hora.asc(), Turnos.id.asc())
+              .all()
+        )
+
+        buffer_zip, nombre_zip = utilreportes.generar_zip_turnos_confirmados(turnos, desde, hasta)
+
+        return StreamingResponse(
+            buffer_zip,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{nombre_zip}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar ZIP: {str(e)}")
 
 #Endpoint para traer los turnos de una fecha especifica, en CSV
 @app.get("/reportes/csv/turnos-por-fecha-csv")
-def Reportes_turnos_por_fecha_csv(
-    fecha: date = Query(..., description="AAAA-MM-DD")
+def reporte_turnos_por_fecha_csv(
+    fecha: date = Query(..., description="AAAA-MM-DD"),
+    pagina: int = Query(1, ge=1, description="Número de página a mostrar"),
+    limite: int = Query(50, ge=1, description="Cantidad máxima de turnos por página"),
 ):
     try:
-        base = (
+        salto = (pagina - 1) * limite
+
+        consulta = (
             db.query(Turnos)
               .options(joinedload(Turnos.persona))
               .filter(Turnos.fecha == fecha)
               .order_by(Turnos.persona_id.asc(), Turnos.hora.asc(), Turnos.id.asc())
+              .offset(salto)
+              .limit(limite)
         )
-        turnos = base.all()
+        turnos = consulta.all()
 
         buffer_csv, nombre = utilreportes.generar_csv_turnos_por_fecha(
             turnos, fecha
@@ -859,9 +940,72 @@ def Reportes_turnos_por_fecha_csv(
         return StreamingResponse(
             buffer_csv,
             media_type="text/csv; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="{nombre}"'}
+            headers={"Content-Disposition": f'attachment; filename=\"{nombre}\"'}
         )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar CSV: {str(e)}")
+
+# Endpoint para traer los turnos de una fecha específica, en EXCEL
+@app.get("/reportes/excel/turnos-por-fecha")
+def reporte_turnos_por_fecha_excel(
+    fecha: date = Query(..., description="AAAA-MM-DD")
+):
+    try:
+        consulta = (
+            db.query(Turnos)
+              .options(joinedload(Turnos.persona))
+              .filter(Turnos.fecha == fecha)
+              .order_by(Turnos.persona_id.asc(), Turnos.hora.asc(), Turnos.id.asc())
+        )
+        turnos = consulta.all()
+
+        buffer_excel, nombre = utilreportes.generar_excel_turnos_por_fecha(
+            turnos, fecha
+        )
+
+        return StreamingResponse(
+            buffer_excel,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{nombre}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al generar Excel: {str(e)}"
+        )
+
+
+# Endpoint para traer los turnos de una fecha específica, en ZIP (2 Excels adentro)
+@app.get("/reportes/zip/turnos-por-fecha")
+def reporte_turnos_por_fecha_zip(
+    fecha: date = Query(..., description="AAAA-MM-DD")
+):
+    try:
+        consulta = (
+            db.query(Turnos)
+              .options(joinedload(Turnos.persona))
+              .filter(Turnos.fecha == fecha)
+              .order_by(Turnos.persona_id.asc(), Turnos.hora.asc(), Turnos.id.asc())
+        )
+        turnos = consulta.all()
+
+        buffer_zip, nombre_zip = utilreportes.generar_zip_turnos_por_fecha(
+            turnos, fecha
+        )
+
+        return StreamingResponse(
+            buffer_zip,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{nombre_zip}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al generar ZIP: {str(e)}"
+        )
