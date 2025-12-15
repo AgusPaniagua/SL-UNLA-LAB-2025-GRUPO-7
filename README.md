@@ -79,23 +79,31 @@ Link a la collections de Postman
     Ejemplo: "http://127.0.0.1:8000/reportes/excel/turnos-cancelados-por-mes-excel"  
 	
 **Fernando Antonio Gomez**  
-    - `GET /turnos_disponibles` — Calcular/obtener turnos disponibles para una fecha  
-    - `GET /reportes/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD`-Turnos confirmados desde/hasta  
-    - `PUT /turnos/{id}/cancelar`- Cancelar turno  
-	- `GET /reportes/pdf/turnos-confirmados-pdf`-  
-	Ejemplo "http://127.0.0.1:8000/reportes/pdf/turnos-confirmados-pdf?desde=2025-09-11&hasta=2025-12-01&pagina=1&limite=10"    
-	- `GET /reportes/csv/turnos-confirmados-csv`-  
-	Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-confirmados-csv?desde=2025-09-11&hasta=2025-12-01&pagina=1&limite=10"  
-    - `GET `/reportes/excel/turnos-confirmados`-  
-    Ejemplo "http://127.0.0.1:8000/reportes/excel/turnos-confirmados?desde=2025-09-11&hasta=2025-12-01"  
-    - `GET `/reportes/zip/turnos-confirmados`-  
-    Ejemplo "http://127.0.0.1:8000/reportes/zip/turnos-confirmados?desde=2025-09-11&hasta=2025-12-01"  
-    - `GET `/reportes/csv/turnos-por-fecha-csv`-  
-    Ejemplo "http://127.0.0.1:8000/reportes/csv/turnos-por-fecha-csv?fecha=2025-12-01&pagina=1&limite=10"   
-	- `GET /reportes/excel/turnos-por-fecha`-    
-	Ejemplo "http://127.0.0.1:8000/reportes/excel/turnos-por-fecha?fecha=2025-12-01"  
-    - `GET /reportes/zip/turnos-por-fecha`-  
-    Ejemplo "http://127.0.0.1:8000/reportes/zip/turnos-por-fecha?fecha=2025-12-01"  
+- `GET /turnos_disponibles` — Calcular/obtener turnos disponibles para una fecha  
+- `GET /reportes/turnos-confirmados?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` — Turnos confirmados desde/hasta  
+- `PUT /turnos/{id}/cancelar` — Cancelar turno  
+
+- `GET /reportes/pdf/turnos-confirmados-pdf`
+  - Ejemplo: `http://127.0.0.1:8000/reportes/pdf/turnos-confirmados-pdf?desde=2025-09-11&hasta=2025-12-01&pagina=1&limite=10`
+
+- `GET /reportes/csv/turnos-confirmados-csv`
+  - Ejemplo: `http://127.0.0.1:8000/reportes/csv/turnos-confirmados-csv?desde=2025-09-11&hasta=2025-12-01&pagina=1&limite=10`
+
+- `GET /reportes/excel/turnos-confirmados`
+  - Ejemplo: `http://127.0.0.1:8000/reportes/excel/turnos-confirmados?desde=2025-09-11&hasta=2025-12-01`
+
+- `GET /reportes/zip/turnos-confirmados`
+  - Ejemplo: `http://127.0.0.1:8000/reportes/zip/turnos-confirmados?desde=2025-09-11&hasta=2025-12-01`
+
+- `GET /reportes/csv/turnos-por-fecha-csv`
+  - Ejemplo: `http://127.0.0.1:8000/reportes/csv/turnos-por-fecha-csv?fecha=2025-12-01&pagina=1&limite=10`
+
+- `GET /reportes/excel/turnos-por-fecha`
+  - Ejemplo: `http://127.0.0.1:8000/reportes/excel/turnos-por-fecha?fecha=2025-12-01`
+
+- `GET /reportes/zip/turnos-por-fecha`
+  - Ejemplo: `http://127.0.0.1:8000/reportes/zip/turnos-por-fecha?fecha=2025-12-01`
+ 
 	
 **Paniagua Agustín Marcelo**  
     - `GET /personas/` — Traer personas    
