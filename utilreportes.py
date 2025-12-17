@@ -1199,8 +1199,8 @@ def generar_pdf_turnos_confirmados(turnos, desde, hasta):
             disenio.add(Paragraph(" "))
 
             #DATOS TURNOS
-            encabezados = ["Turno ID", "Fecha", "Hora", "Estado"]
-            anchos_columnas = [Decimal("0.20"), Decimal("0.35"), Decimal("0.35"), Decimal("0.35")]
+            encabezados = ["Fecha", "Hora", "Estado"]
+            anchos_columnas = [Decimal("0.20"), Decimal("0.35"), Decimal("0.35")]
 
             tabla = FixedColumnWidthTable(
                 number_of_rows=len(turnos_de_persona) + 1,
@@ -1214,7 +1214,6 @@ def generar_pdf_turnos_confirmados(turnos, desde, hasta):
                 ))
 
             for turno in turnos_de_persona:
-                tabla.add(TableCell(Paragraph(str(turno.id))))
                 tabla.add(TableCell(Paragraph(turno.fecha.isoformat())))
                 tabla.add(TableCell(Paragraph(formatear_hora(turno.hora))))  
                 tabla.add(TableCell(Paragraph(turno.estado)))
@@ -1229,6 +1228,7 @@ def generar_pdf_turnos_confirmados(turnos, desde, hasta):
         buffer_pdf.seek(0)
         nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.pdf"
         return buffer_pdf, nombre
+    
     except HTTPException:
         raise
     except Exception as e:
@@ -1238,310 +1238,427 @@ def generar_pdf_turnos_confirmados(turnos, desde, hasta):
         )
     
 def generar_csv_turnos_confirmados(turnos, desde, hasta):
-    # Agrupar por persona
-    por_persona = {}  
-    for turno in turnos:
-        persona = getattr(turno, "persona", None)
-        if persona is None:
-            continue
-        if persona.id not in por_persona:
-            por_persona[persona.id] = {"persona": persona, "turnos": []}
-        por_persona[persona.id]["turnos"].append(turno)
+    try:
+        if not turnos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos confirmados para el período solicitado."
+            )
+        # Agrupar por persona
+        por_persona = {}  
+        for turno in turnos:
+            persona = getattr(turno, "persona", None)
+            if persona is None:
+                continue
+            if persona.id not in por_persona:
+                por_persona[persona.id] = {"persona": persona, "turnos": []}
+            por_persona[persona.id]["turnos"].append(turno)
 
+        if not por_persona:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron personas asociadas a los turnos confirmados."
+            )
+
+        buffer_texto = io.StringIO()
+
+        # Datos iniciales
+        buffer_texto.write("Reporte: Turnos confirmados\n")
+        buffer_texto.write(f"Periodo: {desde.isoformat()} a {hasta.isoformat()}\n")
+        buffer_texto.write(f"Total personas con turnos confirmados: {len(por_persona)}\n")
+        buffer_texto.write(f"Total turnos confirmados: {len(turnos)}\n\n")
+        
+        #Datos persona
+        for persona_id, paquete in sorted(por_persona.items()):
+            persona = paquete["persona"]
+            turnos_de_persona = paquete["turnos"]
+
+            columnas_persona = [
+                "persona_id", "nombre", "dni", "email", "telefono",
+                "fecha_nacimiento", "edad", "habilitado", "total_turnos_confirmados"
+            ]
+            valores_persona = [
+                getattr(persona, "id", ""),
+                getattr(persona, "nombre", ""),
+                getattr(persona, "dni", ""),
+                getattr(persona, "email", ""),
+                getattr(persona, "telefono", ""),
+                getattr(persona, "fecha_de_nacimiento", "") or "",
+                getattr(persona, "edad", "") or "",
+                "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
+                len(turnos_de_persona),
+            ]
+
+            # Fila de encabezado de persona
+            buffer_texto.write(";".join(columnas_persona) + "\n")
+            # Fila de datos de persona
+            buffer_texto.write(";".join(str(v) for v in valores_persona) + "\n")
+
+            # Encabezado turnos
+            buffer_texto.write("turno_id;fecha;hora;estado\n")
+            # Turnos
+            for turno in turnos_de_persona:
+                buffer_texto.write(f"{turno.id};{turno.fecha.isoformat()};{formatear_hora(turno.hora)};{turno.estado}\n")
+
+            buffer_texto.write("\n")
+
+        datos = buffer_texto.getvalue().encode("utf-8-sig")
+        buffer_texto.close()
+        nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.csv"
+        return io.BytesIO(datos), nombre
     
-    buffer_texto = io.StringIO()
-
-    # Datos iniciales
-    buffer_texto.write("Reporte: Turnos confirmados\n")
-    buffer_texto.write(f"Periodo: {desde.isoformat()} a {hasta.isoformat()}\n")
-    buffer_texto.write(f"Total personas con turnos confirmados: {len(por_persona)}\n")
-    buffer_texto.write(f"Total turnos confirmados: {len(turnos)}\n\n")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar CSV: {str(e)}"
+        )
     
-    #Datos persona
-    for persona_id, paquete in sorted(por_persona.items()):
-        persona = paquete["persona"]
-        turnos_de_persona = paquete["turnos"]
-
-        columnas_persona = [
-            "persona_id", "nombre", "dni", "email", "telefono",
-            "fecha_nacimiento", "edad", "habilitado", "total_turnos_confirmados"
-        ]
-        valores_persona = [
-            getattr(persona, "id", ""),
-            getattr(persona, "nombre", ""),
-            getattr(persona, "dni", ""),
-            getattr(persona, "email", ""),
-            getattr(persona, "telefono", ""),
-            getattr(persona, "fecha_de_nacimiento", "") or "",
-            getattr(persona, "edad", "") or "",
-            "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
-            len(turnos_de_persona),
-        ]
-
-        # Fila de encabezado de persona
-        buffer_texto.write(";".join(columnas_persona) + "\n")
-        # Fila de datos de persona
-        buffer_texto.write(";".join(str(v) for v in valores_persona) + "\n")
-
-        # Encabezado turnos
-        buffer_texto.write("turno_id;fecha;hora;estado\n")
-        # Turnos
-        for turno in turnos_de_persona:
-            buffer_texto.write(f"{turno.id};{turno.fecha.isoformat()};{formatear_hora(turno.hora)};{turno.estado}\n")
-
-        buffer_texto.write("\n")
-
-    datos = buffer_texto.getvalue().encode("utf-8-sig")
-    buffer_texto.close()
-    nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.csv"
-    return io.BytesIO(datos), nombre
-
 def generar_excel_turnos_confirmados(turnos, desde, hasta):
-    # Armo los datos de personas (una fila por persona)
-    personas_dic = {}
-    lista_turnos = []
+    try:
+        if not turnos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos confirmados para el período solicitado."
+            )
+       
+        # Armo los datos de personas 
+        personas_dic = {}
+        lista_turnos = []
+        
+        for turno in turnos:
+            persona = getattr(turno, "persona", None)
+            if persona is None:
+                continue
 
-    for turno in turnos:
-        persona = getattr(turno, "persona", None)
-        if persona is None:
-            continue
+            if persona.id not in personas_dic:
+                personas_dic[persona.id] = {
+                    "persona_id": persona.id,
+                    "nombre": persona.nombre,
+                    "dni": persona.dni,
+                    "email": persona.email,
+                    "telefono": persona.telefono,
+                    "fecha_nacimiento": getattr(persona, "fecha_de_nacimiento", "") or "",
+                    "edad": getattr(persona, "edad", "") or "",
+                    "habilitado": "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
+                    "total_turnos_confirmados": 0,
+                }
 
-        if persona.id not in personas_dic:
-            personas_dic[persona.id] = {
+            personas_dic[persona.id]["total_turnos_confirmados"] += 1
+
+            # Datos de cada turno (una fila por turno)
+            lista_turnos.append({
+                "turno_id": turno.id,
                 "persona_id": persona.id,
-                "nombre": persona.nombre,
-                "dni": persona.dni,
-                "email": persona.email,
-                "telefono": persona.telefono,
-                "fecha_nacimiento": getattr(persona, "fecha_de_nacimiento", "") or "",
-                "edad": getattr(persona, "edad", "") or "",
-                "habilitado": "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
-                "total_turnos_confirmados": 0,
-            }
+                "fecha": turno.fecha,
+                "hora": formatear_hora(turno.hora),
+                "estado": turno.estado,
+            })
+        if not personas_dic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron personas asociadas a los turnos confirmados."
+            )
 
-        personas_dic[persona.id]["total_turnos_confirmados"] += 1
+        df_personas = pd.DataFrame(list(personas_dic.values()))
+        df_turnos = pd.DataFrame(lista_turnos)
 
-        # Datos de cada turno (una fila por turno)
-        lista_turnos.append({
-            "turno_id": turno.id,
-            "persona_id": persona.id,
-            "fecha": turno.fecha,
-            "hora": formatear_hora(turno.hora),
-            "estado": turno.estado,
-        })
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            df_personas.to_excel(writer, sheet_name="Personas", index=False)
+            df_turnos.to_excel(writer, sheet_name="Turnos", index=False)
 
-    df_personas = pd.DataFrame(list(personas_dic.values()))
-    df_turnos = pd.DataFrame(lista_turnos)
-
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-        df_personas.to_excel(writer, sheet_name="Personas", index=False)
-        df_turnos.to_excel(writer, sheet_name="Turnos", index=False)
-
-    buffer.seek(0)
-    nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.xlsx"
-    return buffer, nombre
-
+        buffer.seek(0)
+        nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.xlsx"
+        return buffer, nombre
+   
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar Excel: {str(e)}"
+        )
+    
 def generar_zip_turnos_confirmados(turnos, desde, hasta):
-    # Mismo armado de datos que en el Excel
-    personas_dic = {}
-    lista_turnos = []
+    try:
+        if not turnos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos confirmados para el período solicitado."
+            )
 
-    for turno in turnos:
-        persona = getattr(turno, "persona", None)
-        if persona is None:
-            continue
+        personas_dic = {}
+        lista_turnos = []
 
-        if persona.id not in personas_dic:
-            personas_dic[persona.id] = {
+        for turno in turnos:
+            persona = getattr(turno, "persona", None)
+            if persona is None:
+                continue
+
+            if persona.id not in personas_dic:
+                personas_dic[persona.id] = {
+                    "persona_id": persona.id,
+                    "nombre": persona.nombre,
+                    "dni": persona.dni,
+                    "email": persona.email,
+                    "telefono": persona.telefono,
+                    "fecha_nacimiento": getattr(persona, "fecha_de_nacimiento", "") or "",
+                    "edad": getattr(persona, "edad", "") or "",
+                    "habilitado": "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
+                    "total_turnos_confirmados": 0,
+                }
+
+            personas_dic[persona.id]["total_turnos_confirmados"] += 1
+
+            lista_turnos.append({
+                "turno_id": turno.id,
                 "persona_id": persona.id,
-                "nombre": persona.nombre,
-                "dni": persona.dni,
-                "email": persona.email,
-                "telefono": persona.telefono,
-                "fecha_nacimiento": getattr(persona, "fecha_de_nacimiento", "") or "",
-                "edad": getattr(persona, "edad", "") or "",
-                "habilitado": "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
-                "total_turnos_confirmados": 0,
-            }
+                "fecha": turno.fecha,
+                "hora": formatear_hora(turno.hora),
+                "estado": turno.estado,
+            })
 
-        personas_dic[persona.id]["total_turnos_confirmados"] += 1
+        if not personas_dic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron personas asociadas a los turnos confirmados."
+            )
 
-        lista_turnos.append({
-            "turno_id": turno.id,
-            "persona_id": persona.id,
-            "fecha": turno.fecha,
-            "hora": formatear_hora(turno.hora),
-            "estado": turno.estado,
-        })
+        df_personas = pd.DataFrame(list(personas_dic.values()))
+        df_turnos = pd.DataFrame(lista_turnos)
 
-    df_personas = pd.DataFrame(list(personas_dic.values()))
-    df_turnos = pd.DataFrame(lista_turnos)
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            personas_csv = df_personas.to_csv(index=False, sep=';').encode("utf-8-sig")
+            turnos_csv = df_turnos.to_csv(index=False, sep=';').encode("utf-8-sig")
 
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        personas_csv = df_personas.to_csv(index=False, sep=';').encode("utf-8-sig")
-        turnos_csv = df_turnos.to_csv(index=False, sep=';').encode("utf-8-sig")
+            zf.writestr("personas_turnos_confirmados.csv", personas_csv)
+            zf.writestr("turnos_confirmados.csv", turnos_csv)
 
-        zf.writestr("personas_turnos_confirmados.csv", personas_csv)
-        zf.writestr("turnos_confirmados.csv", turnos_csv)
+        zip_buffer.seek(0)
+        nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.zip"
+        return zip_buffer, nombre
 
-    zip_buffer.seek(0)
-    nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.zip"
-    return zip_buffer, nombre
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar ZIP: {str(e)}"
+        )
 
 def generar_csv_turnos_por_fecha(turnos, fecha):
-    # Agrupar por persona 
-    por_persona = {}  
-    for turno in sorted(turnos, key=clave_orden_turno_por_persona):
+    try:
+        if not turnos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos en la fecha solicitada."
+            )
 
-        persona = getattr(turno, "persona", None)
-        if persona is None:
-            continue
-        if persona.id not in por_persona:
-            por_persona[persona.id] = {"persona": persona, "turnos": []}
-        por_persona[persona.id]["turnos"].append(turno)
+        # Agrupar por persona 
+        por_persona = {}  
+        for turno in sorted(turnos, key=clave_orden_turno_por_persona):
 
-    total_turnos = sum(len(paquete["turnos"]) for paquete in por_persona.values())
-    total_personas = len(por_persona)
+            persona = getattr(turno, "persona", None)
+            if persona is None:
+                continue
+            if persona.id not in por_persona:
+                por_persona[persona.id] = {"persona": persona, "turnos": []}
+            por_persona[persona.id]["turnos"].append(turno)
 
-    buffer_texto = io.StringIO()
-    escritor_csv = csv.writer(buffer_texto, delimiter=';', lineterminator='\n')
+        if not por_persona:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron personas asociadas a los turnos de la fecha solicitada."
+            )
+        
+        total_turnos = sum(len(paquete["turnos"]) for paquete in por_persona.values())
+        total_personas = len(por_persona)
+        
+        buffer_texto = io.StringIO()
+        escritor_csv = csv.writer(buffer_texto, delimiter=';', lineterminator='\n')
 
-    # Datos iniciales
-    escritor_csv.writerow(["TOTAL_TURNOS", total_turnos])
-    escritor_csv.writerow(["TOTAL_PERSONAS_CON_TURNOS", total_personas])
-    escritor_csv.writerow([])  # línea en blanco
-    escritor_csv.writerow([f"TURNOS_POR_FECHA: {fecha.isoformat()}"])
-    escritor_csv.writerow([])
-
-    # Datos Persona
-    encabezado_persona = [
-        "persona_id", "nombre", "dni", "email", "telefono",
-        "fecha_nacimiento", "edad", "habilitado", "total_turnos_persona"
-    ]
-    encabezado_turnos = ["turno_id", "fecha", "hora", "estado"]
-
-    # Ordeno las personas por su id (las claves del diccionario)
-    for persona_id, paquete in sorted(por_persona.items()):
-
-        persona = paquete["persona"]
-        turnos_de_persona = paquete["turnos"]
-
-        escritor_csv.writerow(encabezado_persona)
-        escritor_csv.writerow([
-            getattr(persona, "id", ""),
-            getattr(persona, "nombre", ""),
-            getattr(persona, "dni", ""),
-            getattr(persona, "email", ""),
-            getattr(persona, "telefono", ""),
-            (getattr(persona, "fecha_de_nacimiento", "") or ""),
-            (getattr(persona, "edad", "") or ""),
-            "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
-            len(turnos_de_persona),
-        ])
+        # Datos iniciales
+        escritor_csv.writerow(["TOTAL_TURNOS", total_turnos])
+        escritor_csv.writerow(["TOTAL_PERSONAS_CON_TURNOS", total_personas])
+        escritor_csv.writerow([])  # línea en blanco
+        escritor_csv.writerow([f"TURNOS_POR_FECHA: {fecha.isoformat()}"])
         escritor_csv.writerow([])
 
-        # Tabla de turnos de esa persona
-        escritor_csv.writerow(encabezado_turnos)
-        for turno in turnos_de_persona:
+        # Datos Persona
+        encabezado_persona = [
+            "persona_id", "nombre", "dni", "email", "telefono",
+            "fecha_nacimiento", "edad", "habilitado", "total_turnos_persona"
+        ]
+        encabezado_turnos = ["turno_id", "fecha", "hora", "estado"]
+
+        # Ordeno las personas por su id 
+        for persona_id, paquete in sorted(por_persona.items()):
+
+            persona = paquete["persona"]
+            turnos_de_persona = paquete["turnos"]
+
+            escritor_csv.writerow(encabezado_persona)
             escritor_csv.writerow([
-                turno.id,
-                turno.fecha.isoformat(),
-                formatear_hora(turno.hora),
-                turno.estado,
+                getattr(persona, "id", ""),
+                getattr(persona, "nombre", ""),
+                getattr(persona, "dni", ""),
+                getattr(persona, "email", ""),
+                getattr(persona, "telefono", ""),
+                (getattr(persona, "fecha_de_nacimiento", "") or ""),
+                (getattr(persona, "edad", "") or ""),
+                "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
+                len(turnos_de_persona),
             ])
-        escritor_csv.writerow([])  
+            escritor_csv.writerow([])
 
-    datos = buffer_texto.getvalue().encode("utf-8-sig") 
-    nombre = f"turnos_por_fecha_{fecha.isoformat()}.csv"
-    return io.BytesIO(datos), nombre
+            # Tabla de turnos de esa persona
+            escritor_csv.writerow(encabezado_turnos)
+            for turno in turnos_de_persona:
+                escritor_csv.writerow([
+                    turno.id,
+                    turno.fecha.isoformat(),
+                    formatear_hora(turno.hora),
+                    turno.estado,
+                ])
+            escritor_csv.writerow([])  
 
+        datos = buffer_texto.getvalue().encode("utf-8-sig") 
+        nombre = f"turnos_por_fecha_{fecha.isoformat()}.csv"
+        return io.BytesIO(datos), nombre
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar CSV: {str(e)}"
+        )
+    
 def generar_excel_turnos_por_fecha(turnos, fecha):
-    personas_dic = {}
-    filas_turnos = []
+    try:
+        if not turnos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos en la fecha solicitada."
+            )
+        
+        personas_dic = {}
+        filas_turnos = []
 
-    for turno in turnos:
-        persona = turno.persona
+        for turno in turnos:
+            persona = turno.persona
 
-        if persona.id not in personas_dic:
-            personas_dic[persona.id] = {
+            if persona.id not in personas_dic:
+                personas_dic[persona.id] = {
+                    "ID Persona": persona.id,
+                    "Nombre": persona.nombre,
+                    "DNI": persona.dni,
+                    "Email": persona.email,
+                    "Telefono": persona.telefono,
+                    "Edad": getattr(persona, "edad", ""),
+                    "Habilitado": "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
+                }
+
+            filas_turnos.append({
+                "ID Turno": turno.id,
                 "ID Persona": persona.id,
-                "Nombre": persona.nombre,
-                "DNI": persona.dni,
-                "Email": persona.email,
-                "Telefono": persona.telefono,
-                "Edad": getattr(persona, "edad", ""),
-                "Habilitado": "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
-            }
+                "Fecha": turno.fecha,
+                "Hora": formatear_hora(turno.hora),
+                "Estado": turno.estado,
+            })
+        if not personas_dic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron personas asociadas a los turnos de la fecha solicitada."
+            )
 
-        filas_turnos.append({
-            "ID Turno": turno.id,
-            "ID Persona": persona.id,
-            "Fecha": turno.fecha,
-            "Hora": formatear_hora(turno.hora),
-            "Estado": turno.estado,
-        })
+        df_personas = pd.DataFrame(personas_dic.values())
+        df_turnos = pd.DataFrame(filas_turnos)
 
-    df_personas = pd.DataFrame(personas_dic.values())
-    df_turnos = pd.DataFrame(filas_turnos)
-
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-        df_personas.to_excel(writer, sheet_name="Personas", index=False)
-        df_turnos.to_excel(writer, sheet_name="Turnos", index=False)
-
-    buffer.seek(0)
-    nombre = f"turnos_por_fecha_{fecha.isoformat()}.xlsx"
-    return buffer, nombre
-
-def generar_zip_turnos_por_fecha(turnos, fecha):
-    personas_dic = {}
-    filas_turnos = []
-
-    for turno in turnos:
-        persona = turno.persona
-
-        if persona.id not in personas_dic:
-            personas_dic[persona.id] = {
-                "ID Persona": persona.id,
-                "Nombre": persona.nombre,
-                "DNI": persona.dni,
-                "Email": persona.email,
-                "Telefono": persona.telefono,
-                "Edad": getattr(persona, "edad", ""),
-                "Habilitado": "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
-            }
-
-        filas_turnos.append({
-            "ID Turno": turno.id,
-            "ID Persona": persona.id,
-            "Fecha": turno.fecha,
-            "Hora": formatear_hora(turno.hora),
-            "Estado": turno.estado,
-        })
-
-    df_personas = pd.DataFrame(personas_dic.values())
-    df_turnos = pd.DataFrame(filas_turnos)
-
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        buffer_personas = io.BytesIO()
-        with pd.ExcelWriter(buffer_personas, engine="xlsxwriter") as writer:
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
             df_personas.to_excel(writer, sheet_name="Personas", index=False)
-        buffer_personas.seek(0)
-        zf.writestr("personas_turnos_por_fecha.xlsx", buffer_personas.getvalue())
-
-        buffer_turnos = io.BytesIO()
-        with pd.ExcelWriter(buffer_turnos, engine="xlsxwriter") as writer:
             df_turnos.to_excel(writer, sheet_name="Turnos", index=False)
-        buffer_turnos.seek(0)
-        zf.writestr("turnos_por_fecha.xlsx", buffer_turnos.getvalue())
 
-    zip_buffer.seek(0)
-    nombre_zip = f"turnos_por_fecha_{fecha.isoformat()}.zip"
-    return zip_buffer, nombre_zip
+        buffer.seek(0)
+        nombre = f"turnos_por_fecha_{fecha.isoformat()}.xlsx"
+        return buffer, nombre
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar Excel: {str(e)}"
+        )
+    
+def generar_zip_turnos_por_fecha(turnos, fecha):
+    try:
+        if not turnos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos en la fecha solicitada."
+            )
+        personas_dic = {}
+        filas_turnos = []
+
+        for turno in turnos:
+            persona = turno.persona
+
+            if persona.id not in personas_dic:
+                personas_dic[persona.id] = {
+                    "ID Persona": persona.id,
+                    "Nombre": persona.nombre,
+                    "DNI": persona.dni,
+                    "Email": persona.email,
+                    "Telefono": persona.telefono,
+                    "Edad": getattr(persona, "edad", ""),
+                    "Habilitado": "SI" if getattr(persona, "habilitado_para_turno", False) else "NO",
+                }
+
+            filas_turnos.append({
+                "ID Turno": turno.id,
+                "ID Persona": persona.id,
+                "Fecha": turno.fecha,
+                "Hora": formatear_hora(turno.hora),
+                "Estado": turno.estado,
+            })
+        if not personas_dic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron personas asociadas a los turnos de la fecha solicitada."
+            )
+        
+        df_personas = pd.DataFrame(personas_dic.values())
+        df_turnos = pd.DataFrame(filas_turnos)
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            buffer_personas = io.BytesIO()
+            with pd.ExcelWriter(buffer_personas, engine="xlsxwriter") as writer:
+                df_personas.to_excel(writer, sheet_name="Personas", index=False)
+            buffer_personas.seek(0)
+            zf.writestr("personas_turnos_por_fecha.xlsx", buffer_personas.getvalue())
+
+            buffer_turnos = io.BytesIO()
+            with pd.ExcelWriter(buffer_turnos, engine="xlsxwriter") as writer:
+                df_turnos.to_excel(writer, sheet_name="Turnos", index=False)
+            buffer_turnos.seek(0)
+            zf.writestr("turnos_por_fecha.xlsx", buffer_turnos.getvalue())
+
+        zip_buffer.seek(0)
+        nombre_zip = f"turnos_por_fecha_{fecha.isoformat()}.zip"
+        return zip_buffer, nombre_zip
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar ZIP: {str(e)}"
+        )
 
 # def generar_pdf_turnos_por_fecha(db: Session, fecha: date):
 #     try:
