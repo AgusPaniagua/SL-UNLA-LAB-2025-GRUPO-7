@@ -1104,136 +1104,139 @@ def generar_csv_turnos_por_persona(data: list):
 # ----------- ULTIMOS REPORTES DE Gomez Fernando Antonio -----------
 
 def generar_pdf_turnos_confirmados(turnos, desde, hasta):
-    # Agrupar turnos por persona
-    por_persona = {}  
-    for turno in turnos:
-        persona = getattr(turno, "persona", None)
-        if persona is None:
-            continue
-        if persona.id not in por_persona:
-            por_persona[persona.id] = {"persona": persona, "turnos": []}
-        por_persona[persona.id]["turnos"].append(turno)
-
-    documento = Document()
-
-    # Portada 
-    pagina_portada = Page()
-    documento.add_page(pagina_portada)
-    disenio_portada = SingleColumnLayout(pagina_portada)
+    try:
+        if not turnos:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron turnos confirmados para el período solicitado."
+            )
     
-    disenio_portada.add(Paragraph(
-        "Materia: Seminario de Lenguajes",
-        font="Helvetica-Bold", font_size=16, font_color=HexColor("003366"),
-        horizontal_alignment=Alignment.CENTERED
-    ))
-    disenio_portada.add(Paragraph(
-        "Alumno: Gomez Fernando",
-        font="Helvetica-Bold", font_size=14, font_color=HexColor("003366"),
-        horizontal_alignment=Alignment.CENTERED
-    ))
-    disenio_portada.add(Paragraph(
-        "DNI: 43.036.843",
-        font="Helvetica-Bold", font_size=14, font_color=HexColor("003366"),
-        horizontal_alignment=Alignment.CENTERED
-    ))
-    disenio_portada.add(Paragraph(" "))  # espacio
+        # Agrupar turnos por persona
+        por_persona = {}  
+        for turno in turnos:
+            persona = getattr(turno, "persona", None)
+            if persona is None:
+                continue
+            if persona.id not in por_persona:
+                por_persona[persona.id] = {"persona": persona, "turnos": []}
+            por_persona[persona.id]["turnos"].append(turno)
 
-    disenio_portada.add(Paragraph(
-        "Turnos confirmados",
-        font="Helvetica-Bold", font_size=22, font_color=HexColor("003366"),
-        horizontal_alignment=Alignment.CENTERED
-    ))
-    disenio_portada.add(Paragraph(
-        f"Período: {desde.isoformat()} a {hasta.isoformat()}",
-        font_size=14, horizontal_alignment=Alignment.CENTERED
-    ))
-    disenio_portada.add(Paragraph(
-        f"Personas con turnos confirmados: {len(por_persona)}  |  Total de turnos: {len(turnos)}",
-        font_size=11, horizontal_alignment=Alignment.CENTERED
-    ))
-    disenio_portada.add(Paragraph(" "))
+        if not por_persona:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontraron personas asociadas a los turnos confirmados."
+            )
+        
+        documento = Document()
 
-    
-    pagina = Page()
-    documento.add_page(pagina)
-    disenio = SingleColumnLayout(pagina)
-    disenio.add(Paragraph(" "))
-
-    filas_en_pagina = 0
-    LIMITE_FILAS = 18
-
-    def _nueva_pagina():
-        nonlocal pagina, disenio, filas_en_pagina
-        pagina = Page()
-        documento.add_page(pagina)
-        disenio = SingleColumnLayout(pagina)
-        disenio.add(Paragraph(" "))
-        filas_en_pagina = 0
-
-    for persona_id, paquete in sorted(por_persona.items()):
-        persona = paquete["persona"]
-        turnos_de_persona = paquete["turnos"]
-
-        if filas_en_pagina >= LIMITE_FILAS:
-            _nueva_pagina()
-
-        #DATOS PERSONA
-        disenio.add(Paragraph(
-            f"NOMBRE: {getattr(persona, 'nombre', '-')}",
-            font="Helvetica-Bold", font_size=14, font_color=HexColor("0D1366"),
+        # Portada 
+        pagina_portada = Page()
+        documento.add_page(pagina_portada)
+        disenio_portada = SingleColumnLayout(pagina_portada)
+        
+        disenio_portada.add(Paragraph(
+            "Materia: Seminario de Lenguajes",
+            font="Helvetica-Bold", font_size=16, font_color=HexColor("003366"),
             horizontal_alignment=Alignment.CENTERED
         ))
-        disenio.add(Paragraph(
-            f"DNI: {getattr(persona, 'dni', '-')}"
-            f"  -  EMAIL: {getattr(persona, 'email', '-')}"
-            f"  -  TELÉFONO: {getattr(persona, 'telefono', '-')}",
-            font_size=11, font_color=HexColor("0D1366"),
+        disenio_portada.add(Paragraph(
+            "Alumno: Gomez Fernando",
+            font="Helvetica-Bold", font_size=14, font_color=HexColor("003366"),
             horizontal_alignment=Alignment.CENTERED
         ))
-
-        fecha_nac = getattr(persona, "fecha_de_nacimiento", "")
-        edad = getattr(persona, "edad", "")
-        habilitado = "SI" if getattr(persona, "habilitado_para_turno", False) else "NO"
-        disenio.add(Paragraph(
-            f"Fecha nac.: {fecha_nac}  |  Edad: {edad}  |  Habilitado: {habilitado}",
-            font_size=10, horizontal_alignment=Alignment.CENTERED
+        disenio_portada.add(Paragraph(
+            "DNI: 43.036.843",
+            font="Helvetica-Bold", font_size=14, font_color=HexColor("003366"),
+            horizontal_alignment=Alignment.CENTERED
         ))
-        disenio.add(Paragraph(" "))
+        disenio_portada.add(Paragraph(" "))  # espacio
 
-        #DATOS TURNOS
-        encabezados = ["Turno ID", "Fecha", "Hora", "Estado"]
-        anchos_columnas = [Decimal("0.20"), Decimal("0.35"), Decimal("0.35"), Decimal("0.35")]
+        disenio_portada.add(Paragraph(
+            "Turnos confirmados",
+            font="Helvetica-Bold", font_size=22, font_color=HexColor("003366"),
+            horizontal_alignment=Alignment.CENTERED
+        ))
+        disenio_portada.add(Paragraph(
+            f"Período: {desde.isoformat()} a {hasta.isoformat()}",
+            font_size=14, horizontal_alignment=Alignment.CENTERED
+        ))
+        disenio_portada.add(Paragraph(
+            f"Personas con turnos confirmados: {len(por_persona)}  |  Total de turnos: {len(turnos)}",
+            font_size=11, horizontal_alignment=Alignment.CENTERED
+        ))
+        disenio_portada.add(Paragraph(" "))
 
-        tabla = FixedColumnWidthTable(
-            number_of_rows=len(turnos_de_persona) + 1,
-            number_of_columns=len(encabezados),
-            column_widths=anchos_columnas
-        )
+        for persona_id, paquete in sorted(por_persona.items()):
+            persona = paquete["persona"]
+            turnos_de_persona = paquete["turnos"]
+        
+            pagina = Page()
+            documento.add_page(pagina)
+            disenio = SingleColumnLayout(pagina)
+            disenio.add(Paragraph(" "))
 
-        for encabezado in encabezados:
-            tabla.add(TableCell(
-                Paragraph(encabezado, font="Helvetica-Bold", font_color=HexColor("003366"))
+            #DATOS PERSONA
+            disenio.add(Paragraph(
+                f"NOMBRE: {getattr(persona, 'nombre', '-')}",
+                font="Helvetica-Bold", font_size=14, font_color=HexColor("0D1366"),
+                horizontal_alignment=Alignment.CENTERED
+            ))
+            disenio.add(Paragraph(
+                f"DNI: {getattr(persona, 'dni', '-')}"
+                f"  -  EMAIL: {getattr(persona, 'email', '-')}"
+                f"  -  TELÉFONO: {getattr(persona, 'telefono', '-')}",
+                font_size=11, font_color=HexColor("0D1366"),
+                horizontal_alignment=Alignment.CENTERED
             ))
 
-        for turno in turnos_de_persona:
-            tabla.add(TableCell(Paragraph(str(turno.id))))
-            tabla.add(TableCell(Paragraph(turno.fecha.isoformat())))
-            tabla.add(TableCell(Paragraph(formatear_hora(turno.hora))))  
-            tabla.add(TableCell(Paragraph(turno.estado)))
+            fecha_nac = getattr(persona, "fecha_de_nacimiento", "")
+            edad = getattr(persona, "edad", "")
+            habilitado = "SI" if getattr(persona, "habilitado_para_turno", False) else "NO"
+            disenio.add(Paragraph(
+                f"Fecha nac.: {fecha_nac}  |  Edad: {edad}  |  Habilitado: {habilitado}",
+                font_size=10, horizontal_alignment=Alignment.CENTERED
+            ))
+            disenio.add(Paragraph(" "))
 
-        tabla.set_padding_on_all_cells(5, 5, 5, 5)
-        tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
-        disenio.add(tabla)
-        disenio.add(Paragraph(" "))
+            #DATOS TURNOS
+            encabezados = ["Turno ID", "Fecha", "Hora", "Estado"]
+            anchos_columnas = [Decimal("0.20"), Decimal("0.35"), Decimal("0.35"), Decimal("0.35")]
 
-        filas_en_pagina += min(len(turnos_de_persona) + 4, LIMITE_FILAS)
+            tabla = FixedColumnWidthTable(
+                number_of_rows=len(turnos_de_persona) + 1,
+                number_of_columns=len(encabezados),
+                column_widths=anchos_columnas
+            )
 
-    buffer_pdf = io.BytesIO()
-    PDF.dumps(buffer_pdf, documento)
-    buffer_pdf.seek(0)
-    nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.pdf"
-    return buffer_pdf, nombre
+            for encabezado in encabezados:
+                tabla.add(TableCell(
+                    Paragraph(encabezado, font="Helvetica-Bold", font_color=HexColor("003366"))
+                ))
 
+            for turno in turnos_de_persona:
+                tabla.add(TableCell(Paragraph(str(turno.id))))
+                tabla.add(TableCell(Paragraph(turno.fecha.isoformat())))
+                tabla.add(TableCell(Paragraph(formatear_hora(turno.hora))))  
+                tabla.add(TableCell(Paragraph(turno.estado)))
+
+            tabla.set_padding_on_all_cells(5, 5, 5, 5)
+            tabla.set_border_color_on_all_cells(HexColor("#CCCCCC"))
+            disenio.add(tabla)
+            disenio.add(Paragraph(" "))
+
+        buffer_pdf = io.BytesIO()
+        PDF.dumps(buffer_pdf, documento)
+        buffer_pdf.seek(0)
+        nombre = f"turnos_confirmados_{desde.isoformat()}_{hasta.isoformat()}.pdf"
+        return buffer_pdf, nombre
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al generar PDF: {str(e)}"
+        )
+    
 def generar_csv_turnos_confirmados(turnos, desde, hasta):
     # Agrupar por persona
     por_persona = {}  
